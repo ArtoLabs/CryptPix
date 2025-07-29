@@ -3,18 +3,19 @@ from django.template.base import TokenType
 from django.template.defaulttags import token_kwargs
 from django.utils.html import format_html_join
 from cryptpix.html import get_css, get_js, render_image_stack
+from django.utils.safestring import mark_safe
 
 register = template.Library()
 
 @register.simple_tag
 def cryptpix_css():
     """Injects the required <style> block for image layering."""
-    return get_css()
+    return mark_safe(get_css())
 
 @register.simple_tag
 def cryptpix_js():
     """Injects the required <script> block to size image containers."""
-    return get_js()
+    return mark_safe(get_js())
 
 @register.tag
 def cryptpix_image(parser, token):
@@ -36,7 +37,7 @@ def cryptpix_image(parser, token):
     remaining_bits = bits[3:]
     attrs = token_kwargs(remaining_bits, parser, support_legacy=False)
 
-    return CryptPixImageNode(layer1_var, layer2_var, attrs)
+    return mark_safe(CryptPixImageNode(layer1_var, layer2_var, attrs))
 
 
 class CryptPixImageNode(template.Node):
