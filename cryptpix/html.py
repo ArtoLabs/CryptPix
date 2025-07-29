@@ -26,16 +26,23 @@ def get_css():
 def get_js():
     return """
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
+  function resizeImageStacks() {
     document.querySelectorAll('.image-stack').forEach(function(stack) {
       const img = new Image();
       img.onload = function() {
-        stack.style.width = this.width + 'px';
-        stack.style.height = this.height + 'px';
+        const aspectRatio = this.height / this.width;
+        const parentWidth = stack.parentElement.clientWidth;
+        const newHeight = parentWidth * aspectRatio;
+
+        stack.style.width = parentWidth + 'px';
+        stack.style.height = newHeight + 'px';
       };
       img.src = stack.querySelector('img').src;
     });
-  });
+  }
+
+  window.addEventListener('DOMContentLoaded', resizeImageStacks);
+  window.addEventListener('resize', resizeImageStacks);
 </script>
 """
 
