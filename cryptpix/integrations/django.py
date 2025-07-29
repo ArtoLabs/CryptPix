@@ -2,7 +2,7 @@ import os
 from io import BytesIO
 from django.core.files.base import ContentFile
 from django.db import models
-from cryptpix import generate_image_layers  # the function you renamed from split()
+from cryptpix import split_image_layers  # the function you renamed from split()
 
 class CryptPixModelMixin(models.Model):
     # These are the only fields we define
@@ -24,7 +24,7 @@ class CryptPixModelMixin(models.Model):
             super().save(*args, **kwargs)
 
         if base_field and hasattr(base_field, 'path'):
-            layer1_io, layer2_io = generate_image_layers(
+            layer1_io, layer2_io = split_image_layers(
                 base_field.path,
                 block_size=self.cryptpix_block_size
             )
