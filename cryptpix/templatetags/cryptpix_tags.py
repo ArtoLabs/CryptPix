@@ -21,6 +21,8 @@ def cryptpix_js():
 
 @register.tag
 def cryptpix_image(parser, token):
+    print(token)
+    
     """
     Usage:
     {% cryptpix_image layer1_url layer2_url id="photo" class="img-fluid" alt="Photo" %}
@@ -56,7 +58,6 @@ class CryptPixImageNode(template.Node):
         attr_pairs = []
         for key, val in self.attrs.items():
             resolved_val = val.resolve(context)
-            attr_pairs.append(f'{key}="{escape(resolved_val)}"')
-        attrs_str = " ".join(attr_pairs)
+            attr_pairs.append(f'{key}="{resolved_val}"')
 
         return render_image_stack(url1, url2, top_img_attrs=attrs_str)
