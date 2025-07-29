@@ -4,6 +4,8 @@ from django.template.defaulttags import token_kwargs
 from django.utils.html import format_html_join
 from cryptpix.html import get_css, get_js, render_image_stack
 from django.utils.safestring import mark_safe
+from django.utils.html import escape
+
 
 register = template.Library()
 
