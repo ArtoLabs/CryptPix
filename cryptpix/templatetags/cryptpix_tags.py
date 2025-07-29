@@ -21,12 +21,9 @@ def cryptpix_js():
 
 @register.tag
 def cryptpix_image(parser, token):
-    print(token)
-
     """
     Usage:
-    {% cryptpix_image layer1_url layer2_url id="photo" class="img-fluid" alt="Photo" %}
-    Only the second image (top layer) gets these attributes.
+    {% cryptpix_image layer1_url layer2_url id="photo" class="img-fluid" alt="Photo" data-natural-width=photo.image.width %}
     """
     bits = token.split_contents()
     tag_name = bits[0]
@@ -38,10 +35,19 @@ def cryptpix_image(parser, token):
 
     layer1_var = parser.compile_filter(bits[1])
     layer2_var = parser.compile_filter(bits[2])
-    remaining_bits = bits[3:]
-    attrs = token_kwargs(remaining_bits, parser, support_legacy=False)
+    raw_attrs = bits[3:]
+
+    attrs = {}
+    for bit in raw_attrs:
+        if "=" not in bit:
+            raise template.TemplateSyntaxError(
+                f"Malformed attribute assignment: {bit}"
+            )
+        key, val = bit.split("=", 1)
+        attrs[key] = parser.compile_filter(val)
 
     return CryptPixImageNode(layer1_var, layer2_var, attrs)
+
 
 
 class CryptPixImageNode(template.Node):
