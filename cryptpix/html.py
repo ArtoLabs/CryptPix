@@ -1,3 +1,6 @@
+from django.utils.html import escape, format_html
+
+
 def get_css():
     return """
 <style>
@@ -34,13 +37,11 @@ def get_js():
 </script>
 """
 
-def render_image_stack(url1, url2):
-    return f"""
+def render_image_stack(url1, url2, top_img_attrs=""):
+    return format_html("""
 <div class="image-stack">
-  <img src="{url1}" alt="Layer 1">
-  <img src="{url2}" alt="Layer 2">
+  <img src="{}" alt="Layer 1">
+  <img src="{}" {} >
 </div>
-"""
+""", url1, url2, top_img_attrs)
 
-def render_full_html(url1, url2):
-    return get_css() + get_js() + render_image_stack(url1, url2)
