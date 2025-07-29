@@ -37,7 +37,7 @@ def cryptpix_image(parser, token):
     remaining_bits = bits[3:]
     attrs = token_kwargs(remaining_bits, parser, support_legacy=False)
 
-    return mark_safe(CryptPixImageNode(layer1_var, layer2_var, attrs))
+    return CryptPixImageNode(layer1_var, layer2_var, attrs)
 
 
 class CryptPixImageNode(template.Node):
