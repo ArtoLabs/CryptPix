@@ -5,6 +5,8 @@ def get_css():
     return """
 <style>
   .image-stack {
+    width: 100%;
+    height: 100%;
     position: relative;
     display: inline-block;
     image-rendering: -webkit-optimize-contrast;
@@ -15,8 +17,8 @@ def get_css():
     top: 0;
     left: 0;
     width: 100%;
-    height: auto;
-    object-fit: cover;
+    height: 100%;
+    object-fit: contain;
   }
 </style>
 """
