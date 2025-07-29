@@ -1,0 +1,18 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual environment
+.env/
+../venv/
+
+# Logs
+*.log
+
+# IDE files
+.vscode/
+.idea/
+
+index.html
+split_image.py
