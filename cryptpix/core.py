@@ -1,8 +1,7 @@
 from PIL import Image
-import os
+from io import BytesIO
 
-def split(image_path, block_size=10):
-    """Splits an image into two interlocking transparent layers."""
+def split_image_layers(image_path, block_size=16, return_type='bytes'):
     image = Image.open(image_path).convert("RGBA")
     width, height = image.size
 
@@ -16,11 +15,9 @@ def split(image_path, block_size=10):
     for y in range(0, height, block_size):
         for x in range(0, width, block_size):
             use_first_layer = ((x // block_size) + (y // block_size)) % 2 == 0
-
             for dy in range(block_size):
                 for dx in range(block_size):
-                    px = x + dx
-                    py = y + dy
+                    px, py = x + dx, y + dy
                     if px < width and py < height:
                         pixel = original_pixels[px, py]
                         if use_first_layer:
@@ -28,4 +25,20 @@ def split(image_path, block_size=10):
                         else:
                             pixels2[px, py] = pixel
 
-    return layer1, layer2
+    if return_type == 'bytes':
+        buffer1 = BytesIO()
+        buffer2 = BytesIO()
+        layer1.save(buffer1, format="PNG")
+        layer2.save(buffer2, format="PNG")
+        buffer1.seek(0)
+        buffer2.seek(0)
+        return buffer1, buffer2
+    elif return_type == 'files':
+        layer1_path = f"{output_dir}/{base}_layer1.png"
+        layer2_path = f"{output_dir}/{base}_layer2.png"
+        layer1.save(layer1_path)
+        layer2.save(layer2_path)
+        return layer1_path, layer2_path
+
+
+
