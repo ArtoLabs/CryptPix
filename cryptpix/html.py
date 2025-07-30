@@ -37,7 +37,7 @@ function resizeImageStacks() {
   console.log(`- Window width: ${windowWidth}px`);
   console.log(`- Window is ${(percentOfMonitor * 100).toFixed(1)}% of monitor width`);
 
-  const tileSize = 48; // Change this to your checkerboard tile size
+  const tileSize = 40; // Change this to your checkerboard tile size
 
   // Step 1: Build list of scale factors that keep tiles aligned
   const allowedScales = [];
@@ -87,8 +87,6 @@ function resizeImageStacks() {
     console.log(`- Computed style: width=${computedStyle.width}, height=${computedStyle.height}`);
   });
 }
-
-
 
 console.log('Setting up event listeners');
 window.addEventListener('DOMContentLoaded', function() {
