@@ -29,7 +29,10 @@ def get_js():
 function resizeImageStacks(gridStep = 4) {
   document.querySelectorAll('.image-stack').forEach(stack => {
     const topImg = stack.querySelector('img[data-natural-width][data-natural-height]');
-    if (!topImg) return;
+    if (!topImg) {
+      console.warn('No top image with natural size found in stack:', stack);
+      return;
+    }
     const W = parseInt(topImg.dataset.naturalWidth);
     const H = parseInt(topImg.dataset.naturalHeight);
     const percent = window.innerWidth / screen.width;
@@ -48,8 +51,18 @@ function resizeImageStacks(gridStep = 4) {
     w = Math.max(w, gridStep);
     h = Math.max(h, gridStep);
 
+    console.debug('Resizing image stack:', {
+      stack,
+      naturalWidth: W,
+      naturalHeight: H,
+      percent,
+      computedWidth: w,
+      computedHeight: h
+    });
+
     stack.style.width = w + 'px';
     stack.style.height = h + 'px';
+    console.debug('Updated stack style:', stack.style.cssText);
   });
 }
 
