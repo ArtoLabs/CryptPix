@@ -34,10 +34,12 @@ function resizeImageStacks() {
     const naturalWidth = parseInt(topImg.getAttribute('data-natural-width'), 10);
     const naturalHeight = parseInt(topImg.getAttribute('data-natural-height'), 10);
 
+    const monitorWidth = screen.width;
     const windowWidth = window.innerWidth;
-    const scalePercent = windowWidth / naturalWidth;
-    const newWidth = windowWidth;
-    const newHeight = naturalHeight * scalePercent;
+    const percentOfMonitor = windowWidth / monitorWidth;
+
+    const newWidth = naturalWidth * percentOfMonitor;
+    const newHeight = naturalHeight * percentOfMonitor;
 
     stack.style.width = newWidth + 'px';
     stack.style.height = newHeight + 'px';
