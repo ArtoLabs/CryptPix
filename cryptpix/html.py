@@ -70,6 +70,21 @@ function resizeImageStacks(gridStep = 4) {
 console.log('Setting up event listeners');
 window.addEventListener('DOMContentLoaded', function() {
   console.log('DOMContentLoaded fired');
+  
+  // Debug DOM elements before calling function
+  const stacks = document.querySelectorAll('.image-stack');
+  console.log('Found image stacks:', stacks.length);
+  
+  stacks.forEach((stack, i) => {
+    console.log(`Stack ${i}:`, stack);
+    const imgs = stack.querySelectorAll('img');
+    console.log(`  Images in stack ${i}:`, imgs.length);
+    imgs.forEach((img, j) => {
+      console.log(`  Image ${j} has data-natural-width:`, img.hasAttribute('data-natural-width'));
+      console.log(`  Image ${j} has data-natural-height:`, img.hasAttribute('data-natural-height'));
+    });
+  });
+  
   resizeImageStacks();
 });
 window.addEventListener('resize', function() {
