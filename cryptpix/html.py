@@ -29,15 +29,41 @@ def get_js():
 function resizeImageStacks() {
   console.log('⚠️ resizeImageStacks called');
   
-  // Get screen width and window width
+  const TILE_SIZE = 48;
+  const VALID_DIVISORS = [1, 2, 3, 4, 6, 8, 12, 16, 24, 48];
+
   const monitorWidth = window.screen.width;
   const windowWidth = window.innerWidth;
   const percentOfMonitor = windowWidth / monitorWidth;
-  
+
   console.log(`- Monitor width: ${monitorWidth}px`);
   console.log(`- Window width: ${windowWidth}px`);
   console.log(`- Window is ${(percentOfMonitor * 100).toFixed(1)}% of monitor width`);
   
+  // Choose closest divisor based on current % of monitor
+  function getBestDivisor() {
+    // Invert logic: closer to 1 means bigger image, closer to 48 means smaller
+    const idealScale = percentOfMonitor; // e.g., 0.5 = want half-size
+    const idealDivisor = 1 / idealScale;
+
+    // Find closest valid divisor to the ideal one
+    let bestDivisor = VALID_DIVISORS[0];
+    let smallestDiff = Math.abs(bestDivisor - idealDivisor);
+
+    for (const divisor of VALID_DIVISORS) {
+      const diff = Math.abs(divisor - idealDivisor);
+      if (diff < smallestDiff) {
+        bestDivisor = divisor;
+        smallestDiff = diff;
+      }
+    }
+
+    return bestDivisor;
+  }
+
+  const divisor = getBestDivisor();
+  console.log(`- Selected divisor: ${divisor}`);
+
   document.querySelectorAll('.image-stack').forEach(function(stack, index) {
     console.log(`Processing stack #${index}`);
     
@@ -51,36 +77,20 @@ function resizeImageStacks() {
     const naturalHeight = parseInt(topImg.getAttribute('data-natural-height'), 10);
     console.log(`- Natural dimensions: ${naturalWidth}x${naturalHeight}`);
     
-    // Find the best integer divisor based on monitor percentage
-    let divisor;
-    if (percentOfMonitor > 0.75) {
-      divisor = 1;      // 100% size
-    } else if (percentOfMonitor > 0.4) {
-      divisor = 2;      // 50% size
-    } else if (percentOfMonitor > 0.25) {
-      divisor = 4;      // 33% size
-    } else {
-      divisor = 8;      // 25% size or smaller
-    }
-    
-    console.log(`- Window percentage (${(percentOfMonitor * 100).toFixed(1)}%) leads to divisor of: ${divisor}`);
-    
-    // Calculate new dimensions
+    // Calculate new dimensions based on selected divisor
     const newWidth = Math.floor(naturalWidth / divisor);
     const newHeight = Math.floor(naturalHeight / divisor);
     console.log(`- New dimensions: ${newWidth}x${newHeight} (1/${divisor} of original)`);
     
     stack.style.width = newWidth + 'px';
     stack.style.height = newHeight + 'px';
-    
-    // Verify the style was actually applied
-    console.log(`- Applied style: width=${stack.style.width}, height=${stack.style.height}`);
-    
-    // Check if any computed styles are overriding our changes
+
+    // Check result
     const computedStyle = window.getComputedStyle(stack);
     console.log(`- Computed style: width=${computedStyle.width}, height=${computedStyle.height}`);
   });
 }
+
 
 console.log('Setting up event listeners');
 window.addEventListener('DOMContentLoaded', function() {
