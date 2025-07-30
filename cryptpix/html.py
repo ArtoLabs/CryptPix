@@ -28,18 +28,19 @@ def get_js():
 <script>
 function resizeImageStacks() {
   document.querySelectorAll('.image-stack').forEach(function(stack) {
-    const img = new Image();
-    img.onload = function() {
-      const aspectRatio = this.height / this.width;
-      const windowWidth = window.innerWidth;
-      const scalePercent = windowWidth / this.width;
-      const newWidth = windowWidth;
-      const newHeight = this.height * scalePercent;
+    const topImg = stack.querySelector('img[data-natural-width][data-natural-height]');
+    if (!topImg) return;
 
-      stack.style.width = newWidth + 'px';
-      stack.style.height = newHeight + 'px';
-    };
-    img.src = stack.querySelector('img').src;
+    const naturalWidth = parseInt(topImg.getAttribute('data-natural-width'), 10);
+    const naturalHeight = parseInt(topImg.getAttribute('data-natural-height'), 10);
+
+    const windowWidth = window.innerWidth;
+    const scalePercent = windowWidth / naturalWidth;
+    const newWidth = windowWidth;
+    const newHeight = naturalHeight * scalePercent;
+
+    stack.style.width = newWidth + 'px';
+    stack.style.height = newHeight + 'px';
   });
 }
 
