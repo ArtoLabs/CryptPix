@@ -27,7 +27,6 @@ def get_js():
     return """
 <script>
 function resizeImageStacks(gridStep = 4) {
-  console.debug('Resizing image stacks with gridStep:', gridStep);
   document.querySelectorAll('.image-stack').forEach(stack => {
     const topImg = stack.querySelector('img[data-natural-width][data-natural-height]');
     if (!topImg) {
@@ -67,9 +66,16 @@ function resizeImageStacks(gridStep = 4) {
   });
 }
 
-
-window.addEventListener('DOMContentLoaded', resizeImageStacks);
-window.addEventListener('resize', resizeImageStacks);
+console.log('Setting up event listeners');
+window.addEventListener('DOMContentLoaded', function() {
+  console.log('DOMContentLoaded fired');
+  resizeImageStacks();
+});
+window.addEventListener('resize', function() {
+  console.log('Resize event fired');
+  resizeImageStacks();
+});
+console.log('Event listeners registered');
 </script>
 """
 
