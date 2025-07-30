@@ -116,11 +116,13 @@ console.log('Event listeners registered');
 </script>
 """
 
-def render_image_stack(url1, url2, top_img_attrs=""):
+def render_image_stack(url1, url2, tile_size, top_img_attrs=""):
     return format_html("""
 <div class="image-stack">
   <img src="{}" alt="Layer 1">
   <img src="{}" {} >
+  <div class="tile-meta" data-tile-size="{}" hidden></div>
 </div>
-""", url1, url2, top_img_attrs)
+""", url1, url2, top_img_attrs, tile_size)
+
 

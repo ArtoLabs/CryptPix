@@ -23,19 +23,20 @@ def cryptpix_js():
 def cryptpix_image(parser, token):
     """
     Usage:
-    {% cryptpix_image layer1_url layer2_url id="photo" class="img-fluid" alt="Photo" data-natural-width=photo.image.width %}
+    {% cryptpix_image layer1_url layer2_url tile_size id="photo" class="img-fluid" alt="Photo" data-natural-width=photo.image.width %}
     """
     bits = token.split_contents()
     tag_name = bits[0]
 
-    if len(bits) < 3:
+    if len(bits) < 4:
         raise template.TemplateSyntaxError(
-            f"'{tag_name}' tag requires at least 2 arguments: layer1_url and layer2_url"
+            f"'{tag_name}' tag requires at least 3 arguments: layer1_url, layer2_url, tile_size"
         )
 
     layer1_var = parser.compile_filter(bits[1])
     layer2_var = parser.compile_filter(bits[2])
-    raw_attrs = bits[3:]
+    tile_size_var = parser.compile_filter(bits[3])
+    raw_attrs = bits[4:]
 
     attrs = {}
     for bit in raw_attrs:
@@ -46,27 +47,26 @@ def cryptpix_image(parser, token):
         key, val = bit.split("=", 1)
         attrs[key] = parser.compile_filter(val)
 
-    return CryptPixImageNode(layer1_var, layer2_var, attrs)
-
+    return CryptPixImageNode(layer1_var, layer2_var, tile_size_var, attrs)
 
 
 class CryptPixImageNode(template.Node):
-    def __init__(self, layer1_var, layer2_var, attrs):
+    def __init__(self, layer1_var, layer2_var, tile_size_var, attrs):
         self.layer1_var = layer1_var
         self.layer2_var = layer2_var
+        self.tile_size_var = tile_size_var
         self.attrs = attrs
 
     def render(self, context):
         url1 = self.layer1_var.resolve(context)
         url2 = self.layer2_var.resolve(context)
+        tile_size = self.tile_size_var.resolve(context)
 
-        # Render attributes as HTML
         attr_pairs = []
         for key, val in self.attrs.items():
             resolved_val = val.resolve(context)
             attr_pairs.append(f'{key}="{escape(resolved_val)}"')
 
-        # Join the attribute pairs into a single string
         attrs_str = " ".join(attr_pairs)
 
-        return render_image_stack(url1, url2, top_img_attrs=mark_safe(attrs_str))
+        return render_image_stack(url1, url2, tile_size, top_img_attrs=mark_safe(attrs_str))
