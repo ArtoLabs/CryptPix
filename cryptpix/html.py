@@ -26,32 +26,33 @@ def get_css():
 def get_js():
     return """
 <script>
-function resizeImageStacks() {
-  document.querySelectorAll('.image-stack').forEach(function(stack) {
+function resizeImageStacks(gridStep = 4) {
+  document.querySelectorAll('.image-stack').forEach(stack => {
     const topImg = stack.querySelector('img[data-natural-width][data-natural-height]');
     if (!topImg) return;
+    const W = parseInt(topImg.dataset.naturalWidth);
+    const H = parseInt(topImg.dataset.naturalHeight);
+    const percent = window.innerWidth / screen.width;
+    let w = Math.min(W, W * percent);
+    let h = Math.min(H, H * percent);
 
-    const naturalWidth = parseInt(topImg.getAttribute('data-natural-width'), 10);
-    const naturalHeight = parseInt(topImg.getAttribute('data-natural-height'), 10);
+    // Round to integer
+    w = Math.round(w);
+    h = Math.round(h);
 
-    const monitorWidth = screen.width;
-    const windowWidth = window.innerWidth;
-    const percentOfMonitor = windowWidth / monitorWidth;
+    // Snap to shared gridStep multiple
+    w = w - (w % gridStep);
+    h = h - (h % gridStep);
 
-    let newWidth = naturalWidth * percentOfMonitor;
-    let newHeight = naturalHeight * percentOfMonitor;
+    // Enforce minimum 1 × gridStep
+    w = Math.max(w, gridStep);
+    h = Math.max(h, gridStep);
 
-    // Ensure width and height do not exceed natural dimensions
-    newWidth = Math.min(newWidth, naturalWidth);
-    newHeight = Math.min(newHeight, naturalHeight);
-
-    // Snap width and height to the nearest even number
-    newWidth = Math.floor(newWidth / 2) * 2;
-    newHeight = Math.floor(newHeight / 2) * 2;
-
-    stack.style.width = newWidth + 'px';
-    stack.style.height = newHeight + 'px';
+    stack.style.width = w + 'px';
+    stack.style.height = h + 'px';
   });
+}
+
 }
 
 
