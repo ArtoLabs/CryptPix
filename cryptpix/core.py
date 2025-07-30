@@ -61,7 +61,7 @@ def process_and_split_image(image_path):
     buffer1.seek(0)
     buffer2.seek(0)
 
-    return cropped_buffer, buffer1, buffer2, block_size
+    return cropped_buffer, buffer1, buffer2, block_size, width, height
 
 
 
