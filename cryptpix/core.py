@@ -35,7 +35,7 @@ def split_image_layers(image_path, return_type='bytes', output_dir='.', base='ou
     width, height = image.size
 
     block_size = choose_tile_size(width, height)
-    image = resize_to_divisible(image, block_size)
+    image = crop_to_divisible(image, block_size)
     width, height = image.size
 
     layer1 = Image.new("RGBA", (width, height), (0, 0, 0, 0))
