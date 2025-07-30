@@ -69,11 +69,11 @@ function resizeImageStacks(gridStep = 4) {
 console.log('Setting up event listeners');
 window.addEventListener('DOMContentLoaded', function() {
   console.log('DOMContentLoaded fired');
-  resizeImageStacks();
+  resizeImageStacks(4);
 });
 window.addEventListener('resize', function() {
   console.log('Resize event fired');
-  resizeImageStacks();
+  resizeImageStacks(4);
 });
 console.log('Event listeners registered');
 </script>
