@@ -28,9 +28,6 @@ def get_js():
 <script>
 function resizeImageStacks() {
   console.log('⚠️ resizeImageStacks called');
-  
-  const TILE_SIZE = 48;
-  const VALID_DIVISORS = [1, 2, 3, 4, 6, 8, 12, 16, 24, 48];
 
   const monitorWidth = window.screen.width;
   const windowWidth = window.innerWidth;
@@ -39,57 +36,58 @@ function resizeImageStacks() {
   console.log(`- Monitor width: ${monitorWidth}px`);
   console.log(`- Window width: ${windowWidth}px`);
   console.log(`- Window is ${(percentOfMonitor * 100).toFixed(1)}% of monitor width`);
-  
-  // Choose closest divisor based on current % of monitor
-  function getBestDivisor() {
-    // Invert logic: closer to 1 means bigger image, closer to 48 means smaller
-    const idealScale = percentOfMonitor; // e.g., 0.5 = want half-size
-    const idealDivisor = 1 / idealScale;
 
-    // Find closest valid divisor to the ideal one
-    let bestDivisor = VALID_DIVISORS[0];
-    let smallestDiff = Math.abs(bestDivisor - idealDivisor);
+  const tileSize = 48; // Change this to your checkerboard tile size
 
-    for (const divisor of VALID_DIVISORS) {
-      const diff = Math.abs(divisor - idealDivisor);
-      if (diff < smallestDiff) {
-        bestDivisor = divisor;
-        smallestDiff = diff;
-      }
+  // Step 1: Build list of scale factors that keep tiles aligned
+  const allowedScales = [];
+  for (let divisor = 1; divisor <= tileSize; divisor++) {
+    const scale = 1 / divisor;
+    const scaledTile = tileSize * scale;
+
+    // Only include if tile ends up an integer size
+    if (Math.abs(scaledTile - Math.round(scaledTile)) < 0.01) {
+      allowedScales.push(scale);
     }
-
-    return bestDivisor;
   }
 
-  const divisor = getBestDivisor();
-  console.log(`- Selected divisor: ${divisor}`);
+  // Sort largest to smallest
+  allowedScales.sort((a, b) => b - a);
+
+  // Step 2: Pick the largest allowed scale <= current percent of monitor
+  const chosenScale = allowedScales.find(scale => scale <= percentOfMonitor) || allowedScales.at(-1);
+
+  console.log(`- Chosen scale factor: ${chosenScale} (tile size becomes ${tileSize * chosenScale}px)`);
 
   document.querySelectorAll('.image-stack').forEach(function(stack, index) {
     console.log(`Processing stack #${index}`);
-    
+
     const topImg = stack.querySelector('img[data-natural-width][data-natural-height]');
     if (!topImg) {
       console.log(`- Stack #${index} has no image with required attributes`);
       return;
     }
-    
+
     const naturalWidth = parseInt(topImg.getAttribute('data-natural-width'), 10);
     const naturalHeight = parseInt(topImg.getAttribute('data-natural-height'), 10);
-    console.log(`- Natural dimensions: ${naturalWidth}x${naturalHeight}`);
-    
-    // Calculate new dimensions based on selected divisor
-    const newWidth = Math.floor(naturalWidth / divisor);
-    const newHeight = Math.floor(naturalHeight / divisor);
-    console.log(`- New dimensions: ${newWidth}x${newHeight} (1/${divisor} of original)`);
-    
-    stack.style.width = newWidth + 'px';
-    stack.style.height = newHeight + 'px';
 
-    // Check result
+    const newWidth = Math.floor(naturalWidth * chosenScale);
+    const newHeight = Math.floor(naturalHeight * chosenScale);
+
+    console.log(`- Natural dimensions: ${naturalWidth}x${naturalHeight}`);
+    console.log(`- New dimensions: ${newWidth}x${newHeight} (scale=${chosenScale})`);
+
+    stack.style.width = `${newWidth}px`;
+    stack.style.height = `${newHeight}px`;
+    stack.style.imageRendering = 'pixelated';
+
+    // Optional debug info
     const computedStyle = window.getComputedStyle(stack);
+    console.log(`- Applied style: width=${stack.style.width}, height=${stack.style.height}`);
     console.log(`- Computed style: width=${computedStyle.width}, height=${computedStyle.height}`);
   });
 }
+
 
 
 console.log('Setting up event listeners');
