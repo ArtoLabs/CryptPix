@@ -27,44 +27,48 @@ def get_js():
     return """
 <script>
 function resizeImageStacks() {
-  // Get screen width and window width
-  const monitorWidth = window.screen.width;
+  const allowedDivisors = [1, 2, 3, 4, 5, 6, 8, 10, 12, 16];
+
+  const monitorWidth = screen.width;
+  const monitorHeight = screen.height;
+
   const windowWidth = window.innerWidth;
-  const percentOfMonitor = windowWidth / monitorWidth;
-  
-  console.log(`- Window is ${(percentOfMonitor * 100).toFixed(1)}% of monitor width`);
-  
-  document.querySelectorAll('.image-stack').forEach(function(stack, index) {
+  const windowHeight = window.innerHeight;
+
+  const percentOfMonitorWidth = windowWidth / monitorWidth;
+  const percentOfMonitorHeight = windowHeight / monitorHeight;
+
+  document.querySelectorAll('.image-stack').forEach(function(stack) {
     const topImg = stack.querySelector('img[data-natural-width][data-natural-height]');
     if (!topImg) return;
-    
+
     const naturalWidth = parseInt(topImg.getAttribute('data-natural-width'), 10);
     const naturalHeight = parseInt(topImg.getAttribute('data-natural-height'), 10);
-    
-    // Calculate the scale factor based on percentage, but maintain integer scaling
-    // This finds the largest integer divisor where image fits in current window
-    const idealScale = percentOfMonitor;
-    
-    // Find largest integer scale factor that doesn't exceed ideal scale
-    // Limit to a reasonable range (1/10 to 1x)
-    let scaleFactor = 1;
-    for (let i = 1; i <= 10; i++) {
-      if (1/i <= idealScale) {
-        scaleFactor = 1/i;
+
+    let chosenDivisor = 1;
+
+    for (const divisor of allowedDivisors) {
+      const scaledWidth = naturalWidth / divisor;
+      const scaledHeight = naturalHeight / divisor;
+
+      if (
+        scaledWidth <= windowWidth &&
+        scaledHeight <= windowHeight
+      ) {
+        chosenDivisor = divisor;
+      } else {
         break;
       }
     }
-    
-    console.log(`- Ideal scale: ${idealScale.toFixed(2)}, using integer scale: ${scaleFactor}`);
-    
-    // Apply integer scaling
-    const newWidth = Math.round(naturalWidth * scaleFactor);
-    const newHeight = Math.round(naturalHeight * scaleFactor);
-    
+
+    const newWidth = Math.floor(naturalWidth / chosenDivisor);
+    const newHeight = Math.floor(naturalHeight / chosenDivisor);
+
     stack.style.width = newWidth + 'px';
     stack.style.height = newHeight + 'px';
   });
 }
+
 
 console.log('Setting up event listeners');
 window.addEventListener('DOMContentLoaded', function() {
