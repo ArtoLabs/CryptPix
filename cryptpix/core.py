@@ -15,7 +15,7 @@ def choose_tile_size(width, height):
     else:
         return 12
 
-# Here in case we expand to include this option in the future
+
 def crop_to_divisible(image, block_size):
     width, height = image.size
     new_width = width - (width % block_size)
@@ -23,25 +23,18 @@ def crop_to_divisible(image, block_size):
     return image.crop((0, 0, new_width, new_height))
 
 
-def resize_to_divisible(image, block_size):
-    width, height = image.size
-    new_width = width - (width % block_size)  # or round up: (width // block_size + 1) * block_size
-    new_height = height - (height % block_size)  # or round up: (height // block_size + 1) * block_size
-    return image.resize((new_width, new_height), Image.Resampling.LANCZOS)  # LANCZOS for high-quality resizing
-
-
-def split_image_layers(image_path, return_type='bytes', output_dir='.', base='output'):
+def process_and_split_image(image_path):
     image = Image.open(image_path).convert("RGBA")
     width, height = image.size
 
     block_size = choose_tile_size(width, height)
-    image = crop_to_divisible(image, block_size)
-    width, height = image.size
+    cropped_image = crop_to_divisible(image, block_size)
+    width, height = cropped_image.size
 
     layer1 = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     layer2 = Image.new("RGBA", (width, height), (0, 0, 0, 0))
 
-    original_pixels = image.load()
+    original_pixels = cropped_image.load()
     pixels1 = layer1.load()
     pixels2 = layer2.load()
 
@@ -57,20 +50,18 @@ def split_image_layers(image_path, return_type='bytes', output_dir='.', base='ou
                     else:
                         pixels2[px, py] = pixel
 
-    if return_type == 'bytes':
-        buffer1 = BytesIO()
-        buffer2 = BytesIO()
-        layer1.save(buffer1, format="PNG")
-        layer2.save(buffer2, format="PNG")
-        buffer1.seek(0)
-        buffer2.seek(0)
-        return buffer1, buffer2, block_size
-    elif return_type == 'files':
-        layer1_path = os.path.join(output_dir, f"{base}_layer1.png")
-        layer2_path = os.path.join(output_dir, f"{base}_layer2.png")
-        layer1.save(layer1_path)
-        layer2.save(layer2_path)
-        return layer1_path, layer2_path, block_size
+    # Save cropped image and layers to BytesIO
+    cropped_buffer = BytesIO()
+    buffer1 = BytesIO()
+    buffer2 = BytesIO()
+    cropped_image.save(cropped_buffer, format="PNG")
+    layer1.save(buffer1, format="PNG")
+    layer2.save(buffer2, format="PNG")
+    cropped_buffer.seek(0)
+    buffer1.seek(0)
+    buffer2.seek(0)
+
+    return cropped_buffer, buffer1, buffer2, block_size
 
 
 
