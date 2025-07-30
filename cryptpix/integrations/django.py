@@ -11,7 +11,7 @@ class CryptPixModelMixin(models.Model):
 
     # Configurable attributes
     cryptpix_source_field = 'image'         # Name of the base image field
-    cryptpix_block_size = 16                # Default block size
+    cryptpix_block_size = 48                # Default block size
 
     class Meta:
         abstract = True

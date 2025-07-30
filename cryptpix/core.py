@@ -1,7 +1,7 @@
 from PIL import Image
 from io import BytesIO
 
-def split_image_layers(image_path, block_size=16, return_type='bytes'):
+def split_image_layers(image_path, block_size=48, return_type='bytes'):
     image = Image.open(image_path).convert("RGBA")
     width, height = image.size
 
