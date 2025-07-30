@@ -26,72 +26,37 @@ def get_css():
 def get_js():
     return """
 <script>
-function resizeImageStacks(gridStep = 4) {
-  console.warn('Starting resizeImageStacks with gridStep:', gridStep);
-  document.querySelectorAll('.image-stack').forEach(stack => {
+function resizeImageStacks() {
+  document.querySelectorAll('.image-stack').forEach(function(stack) {
     const topImg = stack.querySelector('img[data-natural-width][data-natural-height]');
-    if (!topImg) {
-      console.warn('No top image with natural size found in stack:', stack);
-      return;
-    }
-    const W = parseInt(topImg.dataset.naturalWidth);
-    const H = parseInt(topImg.dataset.naturalHeight);
-    const percent = window.innerWidth / screen.width;
-    let w = Math.min(W, W * percent);
-    let h = Math.min(H, H * percent);
+    if (!topImg) return;
 
-    // Round to integer
-    w = Math.round(w);
-    h = Math.round(h);
+    const naturalWidth = parseInt(topImg.getAttribute('data-natural-width'), 10);
+    const naturalHeight = parseInt(topImg.getAttribute('data-natural-height'), 10);
 
-    // Snap to shared gridStep multiple
-    w = w - (w % gridStep);
-    h = h - (h % gridStep);
+    const monitorWidth = screen.width;
+    const windowWidth = window.innerWidth;
+    const percentOfMonitor = windowWidth / monitorWidth;
 
-    // Enforce minimum 1 × gridStep
-    w = Math.max(w, gridStep);
-    h = Math.max(h, gridStep);
+    // Calculate raw scale (e.g. 1.72) and floor to nearest integer
+    const maxScale = Math.floor(percentOfMonitor * 10); // Multiply to increase granularity
+    const scaleFactor = Math.max(1, Math.floor(maxScale / 10)); // Scale must be >= 1
 
-    console.debug('Resizing image stack:', {
-      stack,
-      naturalWidth: W,
-      naturalHeight: H,
-      percent,
-      computedWidth: w,
-      computedHeight: h
-    });
+    // Apply integer scaling
+    const newWidth = naturalWidth * scaleFactor;
+    const newHeight = naturalHeight * scaleFactor;
 
-    stack.style.width = w + 'px';
-    stack.style.height = h + 'px';
-    console.debug('Updated stack style:', stack.style.cssText);
+    stack.style.width = newWidth + 'px';
+    stack.style.height = newHeight + 'px';
   });
 }
 
-console.log('Setting up event listeners');
 window.addEventListener('DOMContentLoaded', function() {
-  console.log('DOMContentLoaded fired');
-  
-  // Debug DOM elements before calling function
-  const stacks = document.querySelectorAll('.image-stack');
-  console.log('Found image stacks:', stacks.length);
-  
-  stacks.forEach((stack, i) => {
-    console.log(`Stack ${i}:`, stack);
-    const imgs = stack.querySelectorAll('img');
-    console.log(`  Images in stack ${i}:`, imgs.length);
-    imgs.forEach((img, j) => {
-      console.log(`  Image ${j} has data-natural-width:`, img.hasAttribute('data-natural-width'));
-      console.log(`  Image ${j} has data-natural-height:`, img.hasAttribute('data-natural-height'));
-    });
-  });
-  
   resizeImageStacks();
 });
 window.addEventListener('resize', function() {
-  console.log('Resize event fired');
   resizeImageStacks();
 });
-console.log('Event listeners registered');
 </script>
 """
 
