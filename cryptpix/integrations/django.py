@@ -11,6 +11,9 @@ class CryptPixModelMixin(models.Model):
     image_width = models.PositiveIntegerField(editable=False, null=True, blank=True)
     image_height = models.PositiveIntegerField(editable=False, null=True, blank=True)
 
+    # Configurable attributes
+    cryptpix_source_field = 'image'
+
     class Meta:
         abstract = True
 
