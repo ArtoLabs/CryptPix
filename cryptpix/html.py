@@ -27,58 +27,42 @@ def get_js():
     return """
 <script>
 function resizeImageStacks() {
-  console.log('⚠️ resizeImageStacks called');
-  
   // Get screen width and window width
   const monitorWidth = window.screen.width;
   const windowWidth = window.innerWidth;
   const percentOfMonitor = windowWidth / monitorWidth;
   
-  console.log(`- Monitor width: ${monitorWidth}px`);
-  console.log(`- Window width: ${windowWidth}px`);
   console.log(`- Window is ${(percentOfMonitor * 100).toFixed(1)}% of monitor width`);
   
   document.querySelectorAll('.image-stack').forEach(function(stack, index) {
-    console.log(`Processing stack #${index}`);
-    
     const topImg = stack.querySelector('img[data-natural-width][data-natural-height]');
-    if (!topImg) {
-      console.log(`- Stack #${index} has no image with required attributes`);
-      return;
-    }
+    if (!topImg) return;
     
     const naturalWidth = parseInt(topImg.getAttribute('data-natural-width'), 10);
     const naturalHeight = parseInt(topImg.getAttribute('data-natural-height'), 10);
-    console.log(`- Natural dimensions: ${naturalWidth}x${naturalHeight}`);
     
-    // Find the best integer divisor based on monitor percentage
-    let divisor;
-    if (percentOfMonitor > 0.75) {
-      divisor = 1;      // 100% size
-    } else if (percentOfMonitor > 0.4) {
-      divisor = 2;      // 50% size
-    } else if (percentOfMonitor > 0.25) {
-      divisor = 3;      // 33% size
-    } else {
-      divisor = 4;      // 25% size or smaller
+    // Calculate the scale factor based on percentage, but maintain integer scaling
+    // This finds the largest integer divisor where image fits in current window
+    const idealScale = percentOfMonitor;
+    
+    // Find largest integer scale factor that doesn't exceed ideal scale
+    // Limit to a reasonable range (1/10 to 1x)
+    let scaleFactor = 1;
+    for (let i = 1; i <= 10; i++) {
+      if (1/i <= idealScale) {
+        scaleFactor = 1/i;
+        break;
+      }
     }
     
-    console.log(`- Window percentage (${(percentOfMonitor * 100).toFixed(1)}%) leads to divisor of: ${divisor}`);
+    console.log(`- Ideal scale: ${idealScale.toFixed(2)}, using integer scale: ${scaleFactor}`);
     
-    // Calculate new dimensions
-    const newWidth = Math.floor(naturalWidth / divisor);
-    const newHeight = Math.floor(naturalHeight / divisor);
-    console.log(`- New dimensions: ${newWidth}x${newHeight} (1/${divisor} of original)`);
+    // Apply integer scaling
+    const newWidth = Math.round(naturalWidth * scaleFactor);
+    const newHeight = Math.round(naturalHeight * scaleFactor);
     
     stack.style.width = newWidth + 'px';
     stack.style.height = newHeight + 'px';
-    
-    // Verify the style was actually applied
-    console.log(`- Applied style: width=${stack.style.width}, height=${stack.style.height}`);
-    
-    // Check if any computed styles are overriding our changes
-    const computedStyle = window.getComputedStyle(stack);
-    console.log(`- Computed style: width=${computedStyle.width}, height=${computedStyle.height}`);
   });
 }
 
