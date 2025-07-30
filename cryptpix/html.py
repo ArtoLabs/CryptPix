@@ -27,26 +27,24 @@ def get_js():
     return """
 <script>
 function resizeImageStacks() {
-  console.log('Resizing image stacks');
   document.querySelectorAll('.image-stack').forEach(function(stack) {
     const topImg = stack.querySelector('img[data-natural-width][data-natural-height]');
     if (!topImg) return;
 
     const naturalWidth = parseInt(topImg.getAttribute('data-natural-width'), 10);
     const naturalHeight = parseInt(topImg.getAttribute('data-natural-height'), 10);
-
-    const monitorWidth = screen.width;
-    const windowWidth = window.innerWidth;
-    const percentOfMonitor = windowWidth / monitorWidth;
-
-    // Calculate raw scale (e.g. 1.72) and floor to nearest integer
-    const maxScale = Math.floor(percentOfMonitor * 10); // Multiply to increase granularity
-    const scaleFactor = Math.max(1, Math.floor(maxScale / 10)); // Scale must be >= 1
-
+    
+    // Available space for scaling
+    const containerWidth = stack.parentElement.clientWidth;
+    
+    // Calculate integer scale factor (1, 2, 3...)
+    let scaleFactor = Math.floor(containerWidth / naturalWidth);
+    scaleFactor = Math.max(1, Math.min(scaleFactor, 4)); // Limit between 1x and 4x
+    
     // Apply integer scaling
     const newWidth = naturalWidth * scaleFactor;
     const newHeight = naturalHeight * scaleFactor;
-
+    
     stack.style.width = newWidth + 'px';
     stack.style.height = newHeight + 'px';
   });
