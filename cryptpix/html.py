@@ -53,8 +53,6 @@ function resizeImageStacks(gridStep = 4) {
   });
 }
 
-}
-
 
 window.addEventListener('DOMContentLoaded', resizeImageStacks);
 window.addEventListener('resize', resizeImageStacks);
