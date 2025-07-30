@@ -27,6 +27,7 @@ def get_js():
     return """
 <script>
 function resizeImageStacks(gridStep = 4) {
+  console.debug('Resizing image stacks with gridStep:', gridStep);
   document.querySelectorAll('.image-stack').forEach(stack => {
     const topImg = stack.querySelector('img[data-natural-width][data-natural-height]');
     if (!topImg) {
