@@ -38,13 +38,22 @@ function resizeImageStacks() {
     const windowWidth = window.innerWidth;
     const percentOfMonitor = windowWidth / monitorWidth;
 
-    const newWidth = naturalWidth * percentOfMonitor;
-    const newHeight = naturalHeight * percentOfMonitor;
+    let newWidth = naturalWidth * percentOfMonitor;
+    let newHeight = naturalHeight * percentOfMonitor;
+
+    // Ensure width and height do not exceed natural dimensions
+    newWidth = Math.min(newWidth, naturalWidth);
+    newHeight = Math.min(newHeight, naturalHeight);
+
+    // Snap width and height to the nearest even number
+    newWidth = Math.floor(newWidth / 2) * 2;
+    newHeight = Math.floor(newHeight / 2) * 2;
 
     stack.style.width = newWidth + 'px';
     stack.style.height = newHeight + 'px';
   });
 }
+
 
 window.addEventListener('DOMContentLoaded', resizeImageStacks);
 window.addEventListener('resize', resizeImageStacks);
