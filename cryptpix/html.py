@@ -27,26 +27,40 @@ def get_js():
     return """
 <script>
 function resizeImageStacks() {
-  document.querySelectorAll('.image-stack').forEach(function(stack) {
+  console.log('⚠️ resizeImageStacks called');
+  document.querySelectorAll('.image-stack').forEach(function(stack, index) {
+    console.log(`Processing stack #${index}`);
+    
     const topImg = stack.querySelector('img[data-natural-width][data-natural-height]');
-    if (!topImg) return;
-
+    if (!topImg) {
+      console.log(`- Stack #${index} has no image with required attributes`);
+      return;
+    }
+    
     const naturalWidth = parseInt(topImg.getAttribute('data-natural-width'), 10);
     const naturalHeight = parseInt(topImg.getAttribute('data-natural-height'), 10);
+    console.log(`- Natural dimensions: ${naturalWidth}x${naturalHeight}`);
     
-    // Available space for scaling
     const containerWidth = stack.parentElement.clientWidth;
+    console.log(`- Parent container width: ${containerWidth}px`);
     
-    // Calculate integer scale factor (1, 2, 3...)
     let scaleFactor = Math.floor(containerWidth / naturalWidth);
-    scaleFactor = Math.max(1, Math.min(scaleFactor, 4)); // Limit between 1x and 4x
+    scaleFactor = Math.max(1, Math.min(scaleFactor, 4));
+    console.log(`- Calculated scale factor: ${scaleFactor}x`);
     
-    // Apply integer scaling
     const newWidth = naturalWidth * scaleFactor;
     const newHeight = naturalHeight * scaleFactor;
+    console.log(`- New dimensions: ${newWidth}x${newHeight}`);
     
     stack.style.width = newWidth + 'px';
     stack.style.height = newHeight + 'px';
+    
+    // Verify the style was actually applied
+    console.log(`- Applied style: width=${stack.style.width}, height=${stack.style.height}`);
+    
+    // Check if any computed styles are overriding our changes
+    const computedStyle = window.getComputedStyle(stack);
+    console.log(`- Computed style: width=${computedStyle.width}, height=${computedStyle.height}`);
   });
 }
 
