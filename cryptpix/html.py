@@ -58,9 +58,9 @@ function resizeImageStacks() {
     } else if (percentOfMonitor > 0.4) {
       divisor = 2;      // 50% size
     } else if (percentOfMonitor > 0.25) {
-      divisor = 3;      // 33% size
+      divisor = 4;      // 33% size
     } else {
-      divisor = 4;      // 25% size or smaller
+      divisor = 6;      // 25% size or smaller
     }
     
     console.log(`- Window percentage (${(percentOfMonitor * 100).toFixed(1)}%) leads to divisor of: ${divisor}`);
