@@ -27,81 +27,35 @@ def get_js():
     return """
 <script>
 function resizeImageStacks() {
-  console.log('⚠️ resizeImageStacks called');
-
   const monitorWidth = window.screen.width;
   const windowWidth = window.innerWidth;
   const percentOfMonitor = windowWidth / monitorWidth;
 
-  console.log(`- Monitor width: ${monitorWidth}px`);
-  console.log(`- Window width: ${windowWidth}px`);
-  console.log(`- Window is ${(percentOfMonitor * 100).toFixed(1)}% of monitor width`);
-
-  document.querySelectorAll('.image-stack').forEach(function(stack, index) {
-    console.log(`\n🔍 Processing stack #${index}`);
-
+  document.querySelectorAll('.image-stack').forEach(function(stack) {
     const tileMeta = stack.querySelector('.tile-meta');
-    if (!tileMeta) {
-      console.warn(`⚠️ No tile-meta found for stack #${index}. Skipping.`);
-      return;
-    }
+    if (!tileMeta) return;
 
     const tileSize = parseInt(tileMeta.dataset.tileSize, 10);
-    if (isNaN(tileSize)) {
-      console.warn(`⚠️ Invalid tile size for stack #${index}. Skipping.`);
-      return;
-    }
+    if (isNaN(tileSize)) return;
 
-    console.log(`- Tile size: ${tileSize}px`);
-
-    // Step 1: Build list of allowed scales
-    const allowedScales = [];
-    for (let divisor = 1; divisor <= tileSize; divisor++) {
-      const scale = 1 / divisor;
-      const scaledTile = tileSize * scale;
-
-      if (Math.abs(scaledTile - Math.round(scaledTile)) < 0.01) {
-        allowedScales.push(scale);
-      }
-    }
-
-    allowedScales.sort((a, b) => b - a);
-
-    // Step 2: Pick the largest allowed scale ≤ current percent of monitor
-    const chosenScale = allowedScales.find(scale => scale <= percentOfMonitor) || allowedScales.at(-1);
-
-    console.log(`- Chosen scale: ${chosenScale} → tile becomes ${tileSize * chosenScale}px`);
-
-    // Step 3: Resize stack using top image’s natural dimensions
     const topImg = stack.querySelector('img[data-natural-width][data-natural-height]');
-    if (!topImg) {
-      console.warn(`⚠️ No top image with natural size data. Skipping stack #${index}`);
-      return;
-    }
+    if (!topImg) return;
 
     const naturalWidth = parseInt(topImg.getAttribute('data-natural-width'), 10);
     const naturalHeight = parseInt(topImg.getAttribute('data-natural-height'), 10);
+    if (isNaN(naturalWidth) || isNaN(naturalHeight)) return;
 
-    if (isNaN(naturalWidth) || isNaN(naturalHeight)) {
-      console.warn(`⚠️ Invalid natural dimensions. Skipping stack #${index}`);
-      return;
-    }
+    const scaledWidth = naturalWidth * percentOfMonitor;
+    const scaledHeight = naturalHeight * percentOfMonitor;
 
-    const newWidth = Math.floor(naturalWidth * chosenScale);
-    const newHeight = Math.floor(naturalHeight * chosenScale);
+    const roundedWidth = tileSize * Math.round(scaledWidth / tileSize);
+    const roundedHeight = tileSize * Math.round(scaledHeight / tileSize);
 
-    console.log(`- Natural dimensions: ${naturalWidth}x${naturalHeight}`);
-    console.log(`- New dimensions: ${newWidth}x${newHeight}`);
-
-    stack.style.width = `${newWidth}px`;
-    stack.style.height = `${newHeight}px`;
-    stack.style.imageRendering = 'pixelated';
-
-    // Optional debug info
-    const computedStyle = window.getComputedStyle(stack);
-    console.log(`- Computed style: width=${computedStyle.width}, height=${computedStyle.height}`);
+    stack.style.width = `${roundedWidth}px`;
+    stack.style.height = `${roundedHeight}px`;
   });
 }
+
 
 console.log('Setting up event listeners');
 window.addEventListener('DOMContentLoaded', function() {

@@ -5,6 +5,7 @@ from PIL import Image
 from io import BytesIO
 import os
 
+
 def choose_tile_size(width, height):
     max_dim = max(width, height)
     if max_dim > 1536:
@@ -14,18 +15,27 @@ def choose_tile_size(width, height):
     else:
         return 12
 
+# Here in case we expand to include this option in the future
 def crop_to_divisible(image, block_size):
     width, height = image.size
     new_width = width - (width % block_size)
     new_height = height - (height % block_size)
     return image.crop((0, 0, new_width, new_height))
 
+
+def resize_to_divisible(image, block_size):
+    width, height = image.size
+    new_width = width - (width % block_size)  # or round up: (width // block_size + 1) * block_size
+    new_height = height - (height % block_size)  # or round up: (height // block_size + 1) * block_size
+    return image.resize((new_width, new_height), Image.Resampling.LANCZOS)  # LANCZOS for high-quality resizing
+
+
 def split_image_layers(image_path, return_type='bytes', output_dir='.', base='output'):
     image = Image.open(image_path).convert("RGBA")
     width, height = image.size
 
     block_size = choose_tile_size(width, height)
-    image = crop_to_divisible(image, block_size)
+    image = resize_to_divisible(image, block_size)
     width, height = image.size
 
     layer1 = Image.new("RGBA", (width, height), (0, 0, 0, 0))
