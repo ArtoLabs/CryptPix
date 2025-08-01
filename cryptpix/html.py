@@ -1,5 +1,6 @@
 from django.utils.html import escape, format_html
 import json
+from django.utils.safestring import mark_safe
 
 def get_css():
     return """
@@ -77,14 +78,26 @@ window.addEventListener('resize', resizeImageStacks);
 </script>
 """
 
+
 def render_image_stack(url1, url2, tile_size, top_img_attrs="", width=None, height=None, breakpoints=None):
     breakpoints_json = json.dumps(breakpoints or [])
-    width_attr = f'data-width="{width}"' if width is not None else ''
-    height_attr = f'data-height="{height}"' if height is not None else ''
-    return format_html("""
+
+    # Construct meta attributes with single quotes
+    meta_attrs = [
+        f"data-tile-size='{tile_size}'",  # Changed to single quotes
+        f"data-breakpoints='{breakpoints_json}'"  # Already uses single quotes
+    ]
+    if width is not None:
+        meta_attrs.append(f"data-width='{width}'")  # Changed to single quotes
+    if height is not None:
+        meta_attrs.append(f"data-height='{height}'")  # Changed to single quotes
+
+    # Build the HTML as a plain string
+    html = f"""
 <div class="image-stack">
-  <img src="{}" alt="Layer 1">
-  <img src="{}" {} >
-  <div class="tile-meta" data-tile-size="{}" data-breakpoints='{}' {} {} hidden></div>
+  <img src="{escape(url1)}" alt="Layer 1">
+  <img src="{escape(url2)}" {top_img_attrs}>
+  <div class="tile-meta" {" ".join(meta_attrs)} hidden></div>
 </div>
-""", url1, url2, top_img_attrs, tile_size, breakpoints_json, width_attr, height_attr)
+"""
+    return mark_safe(html)
