@@ -1,30 +1,23 @@
 from django import template
 from django.template.base import TokenType
-from django.template.defaulttags import token_kwargs
 from django.utils.html import format_html_join
 from cryptpix.html import get_css, get_js, render_image_stack
 from django.utils.safestring import mark_safe
 from django.utils.html import escape
-
+import json
 
 register = template.Library()
 
 @register.simple_tag
 def cryptpix_css():
-    """Injects the required <style> block for image layering."""
     return mark_safe(get_css())
 
 @register.simple_tag
 def cryptpix_js():
-    """Injects the required <script> block to size image containers."""
     return mark_safe(get_js())
 
 @register.tag
 def cryptpix_image(parser, token):
-    """
-    Usage:
-    {% cryptpix_image layer1_url layer2_url tile_size id="photo" class="img-fluid" alt="Photo" data-natural-width=photo.image.width %}
-    """
     bits = token.split_contents()
     tag_name = bits[0]
 
@@ -49,7 +42,6 @@ def cryptpix_image(parser, token):
 
     return CryptPixImageNode(layer1_var, layer2_var, tile_size_var, attrs)
 
-
 class CryptPixImageNode(template.Node):
     def __init__(self, layer1_var, layer2_var, tile_size_var, attrs):
         self.layer1_var = layer1_var
@@ -62,11 +54,24 @@ class CryptPixImageNode(template.Node):
         url2 = self.layer2_var.resolve(context)
         tile_size = self.tile_size_var.resolve(context)
 
-        attr_pairs = []
+        width = self.attrs.get('width')
+        height = self.attrs.get('height')
+        breakpoints = self.attrs.get('breakpoints')
+
+        if width:
+            width = width.resolve(context)
+        if height:
+            height = height.resolve(context)
+        if breakpoints:
+            breakpoints = json.loads(breakpoints.resolve(context))
+
+        top_img_attrs = []
         for key, val in self.attrs.items():
-            resolved_val = val.resolve(context)
-            attr_pairs.append(f'{key}="{escape(resolved_val)}"')
+            if key not in ['width', 'height', 'breakpoints']:
+                resolved_val = val.resolve(context)
+                top_img_attrs.append(f'{key}="{escape(resolved_val)}"')
 
-        attrs_str = " ".join(attr_pairs)
+        top_img_attrs_str = " ".join(top_img_attrs)
 
-        return render_image_stack(url1, url2, tile_size, top_img_attrs=mark_safe(attrs_str))
+        return render_image_stack(url1, url2, tile_size, top_img_attrs=mark_safe(top_img_attrs_str),
+                                width=width, height=height, breakpoints=breakpoints)

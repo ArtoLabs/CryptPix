@@ -1,5 +1,5 @@
 from django.utils.html import escape, format_html
-
+import json
 
 def get_css():
     return """
@@ -28,10 +28,6 @@ def get_js():
     return """
 <script>
 function resizeImageStacks() {
-  const monitorWidth = window.screen.width;
-  const windowWidth = window.innerWidth;
-  const percentOfMonitor = windowWidth / monitorWidth;
-
   document.querySelectorAll('.image-stack').forEach(function(stack) {
     const tileMeta = stack.querySelector('.tile-meta');
     if (!tileMeta) return;
@@ -46,53 +42,49 @@ function resizeImageStacks() {
     const naturalHeight = parseInt(topImg.getAttribute('data-natural-height'), 10);
     if (isNaN(naturalWidth) || isNaN(naturalHeight)) return;
 
-    const scaledWidth = naturalWidth * percentOfMonitor;
-    const scaledHeight = naturalHeight * percentOfMonitor;
+    const breakpoints = JSON.parse(tileMeta.dataset.breakpoints || '[]');
+    const currentWidth = window.innerWidth;
 
-    const roundedWidth = tileSize * Math.round(scaledWidth / tileSize);
-    const roundedHeight = tileSize * Math.round(scaledHeight / tileSize);
+    let targetWidth = naturalWidth;
+    let targetHeight = naturalHeight;
 
-    stack.style.width = `${roundedWidth}px`;
-    stack.style.height = `${roundedHeight}px`;
+    // Check for user-defined width and height
+    if (tileMeta.dataset.width && tileMeta.dataset.height) {
+      targetWidth = parseInt(tileMeta.dataset.width, 10);
+      targetHeight = parseInt(tileMeta.dataset.height, 10);
+    } else {
+      // Apply breakpoints if defined
+      for (const bp of breakpoints) {
+        if (currentWidth <= bp.maxWidth) {
+          targetWidth = bp.width;
+          targetHeight = bp.height;
+          break;
+        }
+      }
+    }
+
+    // Quantize dimensions to the nearest tile size multiple
+    const scaledWidth = Math.round(targetWidth / tileSize) * tileSize;
+    const scaledHeight = Math.round(targetHeight / tileSize) * tileSize;
+
+    stack.style.width = `${scaledWidth}px`;
+    stack.style.height = `${scaledHeight}px`;
   });
 }
 
-
-console.log('Setting up event listeners');
-window.addEventListener('DOMContentLoaded', function() {
-  console.log('DOMContentLoaded fired');
-  
-  // Debug DOM elements before calling function
-  const stacks = document.querySelectorAll('.image-stack');
-  console.log('Found image stacks:', stacks.length);
-  
-  stacks.forEach((stack, i) => {
-    console.log(`Stack ${i}:`, stack);
-    const imgs = stack.querySelectorAll('img');
-    console.log(`  Images in stack ${i}:`, imgs.length);
-    imgs.forEach((img, j) => {
-      console.log(`  Image ${j} has data-natural-width:`, img.hasAttribute('data-natural-width'));
-      console.log(`  Image ${j} has data-natural-height:`, img.hasAttribute('data-natural-height'));
-    });
-  });
-  
-  resizeImageStacks();
-});
-window.addEventListener('resize', function() {
-  console.log('Resize event fired');
-  resizeImageStacks();
-});
-console.log('Event listeners registered');
+window.addEventListener('DOMContentLoaded', resizeImageStacks);
+window.addEventListener('resize', resizeImageStacks);
 </script>
 """
 
-def render_image_stack(url1, url2, tile_size, top_img_attrs=""):
+def render_image_stack(url1, url2, tile_size, top_img_attrs="", width=None, height=None, breakpoints=None):
+    breakpoints_json = json.dumps(breakpoints or [])
+    width_attr = f'data-width="{width}"' if width is not None else ''
+    height_attr = f'data-height="{height}"' if height is not None else ''
     return format_html("""
 <div class="image-stack">
   <img src="{}" alt="Layer 1">
   <img src="{}" {} >
-  <div class="tile-meta" data-tile-size="{}" hidden></div>
+  <div class="tile-meta" data-tile-size="{}" data-breakpoints='{}' {} {} hidden></div>
 </div>
-""", url1, url2, top_img_attrs, tile_size)
-
-
+""", url1, url2, top_img_attrs, tile_size, breakpoints_json, width_attr, height_attr)
