@@ -95,8 +95,8 @@ def render_image_stack(url1, url2, tile_size, width, height, hue_rotation, top_i
     # Build the HTML as a plain string
     html = f"""
 <div class="image-stack">
-  <img src="{escape(url1)}" alt="Layer 1" style="filter: invert(100%) hue-rotate(-117deg);">
-  <img src="{escape(url2)}" {top_img_attrs} data-natural-width={escape(width)} data-natural-height={escape(height)}>
+  <img src="{escape(url1)}" style="filter: invert(100%) hue-rotate(-{escape(hue_rotation)}deg);">
+  <img src="{escape(url2)}" style="filter: invert(100%) hue-rotate(-{escape(hue_rotation)}deg);" {top_img_attrs} data-natural-width={escape(width)} data-natural-height={escape(height)}>
   <div class="tile-meta" {" ".join(meta_attrs)} hidden></div>
 </div>
 """
