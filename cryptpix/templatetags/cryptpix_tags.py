@@ -58,7 +58,7 @@ class CryptPixImageNode(template.Node):
         width_attr = self.attrs.get('width')
         height_attr = self.attrs.get('height')
         breakpoints = self.attrs.get('breakpoints')
-        parent_size = self.attrs.get('parent-size')  # New attribute for data-parent-size
+        parent_size = self.attrs.get('data-parent-size')  # New attribute for data-parent-size
 
         if width_attr:
             width_attr = width_attr.resolve(context)
@@ -71,7 +71,7 @@ class CryptPixImageNode(template.Node):
 
         top_img_attrs = []
         for key, val in self.attrs.items():
-            if key not in ['width', 'height', 'breakpoints', 'parent-size']:  # Exclude parent-size
+            if key not in ['width', 'height', 'breakpoints', 'data-parent-size']:  # Exclude parent-size
                 resolved_val = val.resolve(context)
                 top_img_attrs.append(f'{key}="{escape(resolved_val)}"')
 
