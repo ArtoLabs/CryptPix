@@ -79,7 +79,7 @@ window.addEventListener('resize', resizeImageStacks);
 """
 
 
-def render_image_stack(url1, url2, tile_size, width, height, top_img_attrs="", width_attr=None, height_attr=None, breakpoints=None):
+def render_image_stack(url1, url2, tile_size, width, height, hue_rotation, top_img_attrs="", width_attr=None, height_attr=None, breakpoints=None):
     breakpoints_json = json.dumps(breakpoints or [])
 
     # Construct meta attributes with single quotes
@@ -95,7 +95,7 @@ def render_image_stack(url1, url2, tile_size, width, height, top_img_attrs="", w
     # Build the HTML as a plain string
     html = f"""
 <div class="image-stack">
-  <img src="{escape(url1)}" alt="Layer 1">
+  <img src="{escape(url1)}" alt="Layer 1" style="filter: invert(100%) hue-rotate(-117deg);">
   <img src="{escape(url2)}" {top_img_attrs} data-natural-width={escape(width)} data-natural-height={escape(height)}>
   <div class="tile-meta" {" ".join(meta_attrs)} hidden></div>
 </div>

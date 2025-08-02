@@ -52,6 +52,7 @@ class CryptPixImageNode(template.Node):
         tile_size = getattr(photo, "tile_size")
         width = getattr(photo, "image_width", None)
         height = getattr(photo, "image_height", None)
+        hue_rotation = getattr(photo, "hue_rotation", None)
 
         # Allow override via tag attributes
         width_attr = self.attrs.get('width')
@@ -74,7 +75,7 @@ class CryptPixImageNode(template.Node):
         top_img_attrs_str = " ".join(top_img_attrs)
 
         return render_image_stack(
-            url1, url2, tile_size, width, height,
+            url1, url2, tile_size, width, height, hue_rotation,
             top_img_attrs=mark_safe(top_img_attrs_str),
             width_attr=width_attr, height_attr=height_attr, breakpoints=breakpoints
         )
