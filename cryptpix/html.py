@@ -29,6 +29,16 @@ def get_js():
     return """
 <script>
 function resizeImageStacks() {
+  // Helper function to parse dimension (pixels or percentage)
+  function parseDimension(value, baseDimension) {
+    if (!value) return baseDimension;
+    if (value.endsWith('%')) {
+      const percentage = parseFloat(value) / 100;
+      return Math.round(baseDimension * percentage);
+    }
+    return parseInt(value, 10);
+  }
+
   document.querySelectorAll('.image-stack').forEach(function(stack) {
     const tileMeta = stack.querySelector('.tile-meta');
     if (!tileMeta) return;
@@ -50,15 +60,19 @@ function resizeImageStacks() {
     let targetHeight = naturalHeight;
 
     // Check for user-defined width and height
-    if (tileMeta.dataset.width && tileMeta.dataset.height) {
-      targetWidth = parseInt(tileMeta.dataset.width, 10);
-      targetHeight = parseInt(tileMeta.dataset.height, 10);
+    if (tileMeta.dataset.width) {
+      targetWidth = parseDimension(tileMeta.dataset.width, naturalWidth);
+      // If height is missing or blank, use width value
+      targetHeight = parseDimension(tileMeta.dataset.height || tileMeta.dataset.width, naturalHeight);
     } else {
       // Apply breakpoints if defined
       for (const bp of breakpoints) {
         if (currentWidth <= bp.maxWidth) {
-          targetWidth = bp.width;
-          targetHeight = bp.height;
+          if (bp.width) {
+            targetWidth = parseDimension(bp.width, naturalWidth);
+            // If breakpoint height is missing or blank, use breakpoint width
+            targetHeight = parseDimension(bp.height || bp.width, naturalHeight);
+          }
           break;
         }
       }
