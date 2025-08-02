@@ -7,6 +7,7 @@ setup(
     author='Your Name',
     author_email='you@example.com',
     packages=find_packages(),
+    include_package_data=True,  # <-- Add this line
     install_requires=[
         'Pillow'
     ],
