@@ -1,9 +1,6 @@
-from PIL import Image
+from PIL import Image, ImageOps
 from io import BytesIO
-
-from PIL import Image
-from io import BytesIO
-import os
+import random
 
 
 def choose_tile_size(width, height):
@@ -16,6 +13,40 @@ def choose_tile_size(width, height):
         return 12
 
 
+
+def distort_image(input_path):
+    """
+    Apply a random hue rotation (30-180 degrees) and invert colors on an image.
+
+    Args:
+        input_path: Path to the input image
+
+    Returns:
+        tuple: (PIL.Image, int) - The distorted image in memory and the chosen hue rotation
+    """
+    hue_rotation = random.randint(30, 180)
+    img = Image.open(input_path).convert('RGB')
+
+    # Convert to HSV
+    hsv = img.convert('HSV')
+    h, s, v = hsv.split()
+
+    # Apply hue rotation (Pillow hue is 0–255, so scale accordingly)
+    hue_shift = int((hue_rotation / 360.0) * 255)
+    h_data = h.load()
+    for y in range(h.size[1]):
+        for x in range(h.size[0]):
+            h_data[x, y] = (h_data[x, y] + hue_shift) % 256
+
+    # Reconstruct and convert back to RGB
+    distorted_rgb = Image.merge('HSV', (h, s, v)).convert('RGB')
+
+    # Invert colors
+    final_image = ImageOps.invert(distorted_rgb)
+
+    return final_image, hue_rotation
+
+
 def crop_to_divisible(image, block_size):
     width, height = image.size
     new_width = width - (width % block_size)
@@ -23,8 +54,18 @@ def crop_to_divisible(image, block_size):
     return image.crop((0, 0, new_width, new_height))
 
 
-def process_and_split_image(image_path):
-    image = Image.open(image_path).convert("RGBA")
+def process_and_split_image(image):
+    """
+    Process and split an image into two layers.
+
+    Args:
+        image: PIL.Image object to process
+
+    Returns:
+        tuple: (cropped_buffer, buffer1, buffer2, block_size, width, height)
+    """
+    # Convert to RGBA if not already
+    image = image.convert("RGBA")
     width, height = image.size
 
     block_size = choose_tile_size(width, height)

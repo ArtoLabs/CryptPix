@@ -2,7 +2,7 @@ import os
 from io import BytesIO
 from django.core.files.base import ContentFile
 from django.db import models
-from cryptpix import process_and_split_image  # Updated function that returns tile size too
+from cryptpix import process_and_split_image, distort_image  # Updated function that returns tile size too
 
 class CryptPixModelMixin(models.Model):
     image_layer_1 = models.ImageField(upload_to='cryptpix/', editable=False, null=True, blank=True)
@@ -10,6 +10,7 @@ class CryptPixModelMixin(models.Model):
     tile_size = models.PositiveSmallIntegerField(editable=False, null=True, blank=True)
     image_width = models.PositiveIntegerField(editable=False, null=True, blank=True)
     image_height = models.PositiveIntegerField(editable=False, null=True, blank=True)
+    hue_rotation = models.PositiveSmallIntegerField(editable=False, null=True, blank=True)
 
     # Configurable attributes
     cryptpix_source_field = 'image'
@@ -25,8 +26,10 @@ class CryptPixModelMixin(models.Model):
             super().save(*args, **kwargs)
 
         if base_field and hasattr(base_field, 'path'):
+            # Distort the image and get the random hue rotation
+            distorted_image, hue_rotation = distort_image(base_field.path)
             # Process the image and get cropped image, layers, and tile size
-            _, layer1_io, layer2_io, tile_size, width, height = process_and_split_image(base_field.path)
+            _, layer1_io, layer2_io, tile_size, width, height = process_and_split_image(distorted_image)
             base_filename = os.path.splitext(os.path.basename(base_field.name))[0]
 
             # Save the layers

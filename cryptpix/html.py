@@ -79,7 +79,7 @@ window.addEventListener('resize', resizeImageStacks);
 """
 
 
-def render_image_stack(url1, url2, tile_size, top_img_attrs="", width=None, height=None, breakpoints=None):
+def render_image_stack(url1, url2, tile_size, width, height, top_img_attrs="", width_attr=None, height_attr=None, breakpoints=None):
     breakpoints_json = json.dumps(breakpoints or [])
 
     # Construct meta attributes with single quotes
@@ -87,16 +87,16 @@ def render_image_stack(url1, url2, tile_size, top_img_attrs="", width=None, heig
         f"data-tile-size='{tile_size}'",  # Changed to single quotes
         f"data-breakpoints='{breakpoints_json}'"  # Already uses single quotes
     ]
-    if width is not None:
-        meta_attrs.append(f"data-width='{width}'")  # Changed to single quotes
-    if height is not None:
-        meta_attrs.append(f"data-height='{height}'")  # Changed to single quotes
+    if width_attr is not None:
+        meta_attrs.append(f"data-width='{width_attr}'")  # Changed to single quotes
+    if height_attr is not None:
+        meta_attrs.append(f"data-height='{height_attr}'")  # Changed to single quotes
 
     # Build the HTML as a plain string
     html = f"""
 <div class="image-stack">
   <img src="{escape(url1)}" alt="Layer 1">
-  <img src="{escape(url2)}" {top_img_attrs}>
+  <img src="{escape(url2)}" {top_img_attrs} data-natural-width={escape(width)} data-natural-height={escape(height)}>
   <div class="tile-meta" {" ".join(meta_attrs)} hidden></div>
 </div>
 """

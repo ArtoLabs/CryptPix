@@ -21,15 +21,13 @@ def cryptpix_image(parser, token):
     bits = token.split_contents()
     tag_name = bits[0]
 
-    if len(bits) < 4:
+    if len(bits) < 2:
         raise template.TemplateSyntaxError(
-            f"'{tag_name}' tag requires at least 3 arguments: layer1_url, layer2_url, tile_size"
+            f"'{tag_name}' tag requires at least 1 argument: photo instance"
         )
 
-    layer1_var = parser.compile_filter(bits[1])
-    layer2_var = parser.compile_filter(bits[2])
-    tile_size_var = parser.compile_filter(bits[3])
-    raw_attrs = bits[4:]
+    photo_var = parser.compile_filter(bits[1])
+    raw_attrs = bits[2:]
 
     attrs = {}
     for bit in raw_attrs:
@@ -40,28 +38,30 @@ def cryptpix_image(parser, token):
         key, val = bit.split("=", 1)
         attrs[key] = parser.compile_filter(val)
 
-    return CryptPixImageNode(layer1_var, layer2_var, tile_size_var, attrs)
+    return CryptPixImageNode(photo_var, attrs)
 
 class CryptPixImageNode(template.Node):
-    def __init__(self, layer1_var, layer2_var, tile_size_var, attrs):
-        self.layer1_var = layer1_var
-        self.layer2_var = layer2_var
-        self.tile_size_var = tile_size_var
+    def __init__(self, photo_var, attrs):
+        self.photo_var = photo_var
         self.attrs = attrs
 
     def render(self, context):
-        url1 = self.layer1_var.resolve(context)
-        url2 = self.layer2_var.resolve(context)
-        tile_size = self.tile_size_var.resolve(context)
+        photo = self.photo_var.resolve(context)
+        url1 = getattr(photo, "image_layer_1").url
+        url2 = getattr(photo, "image_layer_2").url
+        tile_size = getattr(photo, "tile_size")
+        width = getattr(photo, "image_width", None)
+        height = getattr(photo, "image_height", None)
 
-        width = self.attrs.get('width')
-        height = self.attrs.get('height')
+        # Allow override via tag attributes
+        width_attr = self.attrs.get('width')
+        height_attr = self.attrs.get('height')
         breakpoints = self.attrs.get('breakpoints')
 
-        if width:
-            width = width.resolve(context)
-        if height:
-            height = height.resolve(context)
+        if width_attr:
+            width_attr = width_attr.resolve(context)
+        if height_attr:
+            height_attr = height_attr.resolve(context)
         if breakpoints:
             breakpoints = json.loads(breakpoints.resolve(context))
 
@@ -73,5 +73,8 @@ class CryptPixImageNode(template.Node):
 
         top_img_attrs_str = " ".join(top_img_attrs)
 
-        return render_image_stack(url1, url2, tile_size, top_img_attrs=mark_safe(top_img_attrs_str),
-                                width=width, height=height, breakpoints=breakpoints)
+        return render_image_stack(
+            url1, url2, tile_size, width, height,
+            top_img_attrs=mark_safe(top_img_attrs_str),
+            width_attr=width_attr, height_attr=height_attr, breakpoints=breakpoints
+        )
