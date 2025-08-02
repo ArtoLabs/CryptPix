@@ -58,6 +58,7 @@ class CryptPixImageNode(template.Node):
         width_attr = self.attrs.get('width')
         height_attr = self.attrs.get('height')
         breakpoints = self.attrs.get('breakpoints')
+        parent_size = self.attrs.get('parent-size')  # New attribute for data-parent-size
 
         if width_attr:
             width_attr = width_attr.resolve(context)
@@ -65,10 +66,12 @@ class CryptPixImageNode(template.Node):
             height_attr = height_attr.resolve(context)
         if breakpoints:
             breakpoints = json.loads(breakpoints.resolve(context))
+        if parent_size:
+            parent_size = parent_size.resolve(context)
 
         top_img_attrs = []
         for key, val in self.attrs.items():
-            if key not in ['width', 'height', 'breakpoints']:
+            if key not in ['width', 'height', 'breakpoints', 'parent-size']:  # Exclude parent-size
                 resolved_val = val.resolve(context)
                 top_img_attrs.append(f'{key}="{escape(resolved_val)}"')
 
@@ -77,5 +80,6 @@ class CryptPixImageNode(template.Node):
         return render_image_stack(
             url1, url2, tile_size, width, height, hue_rotation,
             top_img_attrs=mark_safe(top_img_attrs_str),
-            width_attr=width_attr, height_attr=height_attr, breakpoints=breakpoints
+            width_attr=width_attr, height_attr=height_attr,
+            breakpoints=breakpoints, parent_size=parent_size
         )

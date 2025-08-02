@@ -33,6 +33,10 @@ function resizeImageStacks() {
   function parseDimension(value, baseDimension, isParentSize, parentDimension) {
     if (!value) return baseDimension;
     if (value.endsWith('%') && isParentSize) {
+      if (parentDimension === 0) {
+        console.warn('Parent dimension is 0; falling back to base dimension:', baseDimension);
+        return baseDimension;
+      }
       const percentage = parseFloat(value) / 100;
       return Math.round(parentDimension * percentage);
     }
@@ -43,23 +47,55 @@ function resizeImageStacks() {
     return parseInt(value, 10);
   }
 
+  // Helper function to find a parent with non-zero dimensions
+  function findSizedParent(element) {
+    let parent = element.parentElement;
+    while (parent) {
+      if (parent.clientWidth > 0 && parent.clientHeight > 0) {
+        console.log('Found sized parent:', parent, 'width:', parent.clientWidth, 'height:', parent.clientHeight);
+        return parent;
+      }
+      parent = parent.parentElement;
+    }
+    console.warn('No parent with non-zero dimensions found; falling back to document body');
+    return document.body; // Fallback to document body
+  }
+
   document.querySelectorAll('.image-stack').forEach(function(stack) {
     const tileMeta = stack.querySelector('.tile-meta');
-    if (!tileMeta) return;
+    if (!tileMeta) {
+      console.warn('No tile-meta found in image-stack:', stack);
+      return;
+    }
 
     const tileSize = parseInt(tileMeta.dataset.tileSize, 10);
-    if (isNaN(tileSize)) return;
+    if (isNaN(tileSize)) {
+      console.warn('Invalid tileSize in tile-meta:', tileMeta.dataset.tileSize);
+      return;
+    }
 
     const topImg = stack.querySelector('img[data-natural-width][data-natural-height]');
-    if (!topImg) return;
+    if (!topImg) {
+      console.warn('No image with data-natural-width/height found in image-stack:', stack);
+      return;
+    }
 
     const naturalWidth = parseInt(topImg.getAttribute('data-natural-width'), 10);
     const naturalHeight = parseInt(topImg.getAttribute('data-natural-height'), 10);
-    if (isNaN(naturalWidth) || isNaN(naturalHeight)) return;
+    if (isNaN(naturalWidth) || isNaN(naturalHeight)) {
+      console.warn('Invalid natural width/height in image:', topImg);
+      return;
+    }
 
     const isParentSize = tileMeta.dataset.parentSize === 'true';
-    const parentWidth = isParentSize ? stack.parentElement.clientWidth : naturalWidth;
-    const parentHeight = isParentSize ? stack.parentElement.clientHeight : naturalHeight;
+    // Find parent with non-zero dimensions
+    const parentContainer = isParentSize ? findSizedParent(stack) : null;
+    const parentWidth = isParentSize ? parentContainer.clientWidth : naturalWidth;
+    const parentHeight = isParentSize ? parentContainer.clientHeight : naturalHeight;
+
+    if (isParentSize && (parentWidth === 0 || parentHeight === 0)) {
+      console.warn('Selected parent container has zero width or height:', parentContainer);
+    }
 
     const breakpoints = JSON.parse(tileMeta.dataset.breakpoints || '[]');
     const currentWidth = window.innerWidth;
@@ -109,18 +145,20 @@ window.addEventListener('resize', resizeImageStacks);
 """
 
 
-def render_image_stack(url1, url2, tile_size, width, height, hue_rotation, top_img_attrs="", width_attr=None, height_attr=None, breakpoints=None):
+def render_image_stack(url1, url2, tile_size, width, height, hue_rotation, top_img_attrs="", width_attr=None, height_attr=None, breakpoints=None, parent_size=None):
     breakpoints_json = json.dumps(breakpoints or [])
 
     # Construct meta attributes with single quotes
     meta_attrs = [
-        f"data-tile-size='{tile_size}'",  # Changed to single quotes
-        f"data-breakpoints='{breakpoints_json}'"  # Already uses single quotes
+        f"data-tile-size='{tile_size}'",
+        f"data-breakpoints='{breakpoints_json}'"
     ]
     if width_attr is not None:
-        meta_attrs.append(f"data-width='{width_attr}'")  # Changed to single quotes
+        meta_attrs.append(f"data-width='{width_attr}'")
     if height_attr is not None:
-        meta_attrs.append(f"data-height='{height_attr}'")  # Changed to single quotes
+        meta_attrs.append(f"data-height='{height_attr}'")
+    if parent_size is not None:
+        meta_attrs.append(f"data-parent-size='{parent_size}'")  # Add data-parent-size
 
     # Build the HTML as a plain string
     html = f"""
