@@ -129,29 +129,27 @@ function resizeImageStacks() {
     let targetHeight = naturalHeight;
 
     // Check for user-defined width and height
-    if (tileMeta.dataset.width) {
-      console.log('Processing user-defined dimensions:', { width: tileMeta.dataset.width, height: tileMeta.dataset.height });
-      targetWidth = parseDimension(tileMeta.dataset.width, naturalWidth, isParentSize, parentWidth);
-      // If height is missing or blank, use width value
-      targetHeight = parseDimension(
-        tileMeta.dataset.height || tileMeta.dataset.width,
-        naturalHeight,
-        isParentSize,
-        parentHeight
-      );
+    const widthAttr = tileMeta.dataset.width || (isParentSize ? '100%' : null);
+    const heightAttr = tileMeta.dataset.height;
+    console.log('Attributes:', { widthAttr, heightAttr });
+
+    if (widthAttr) {
+      console.log('Processing user-defined dimensions:', { width: widthAttr, height: heightAttr });
+      targetWidth = parseDimension(widthAttr, naturalWidth, isParentSize, parentWidth);
+      // Calculate height proportionally based on targetWidth and aspect ratio
+      const aspectRatio = naturalHeight / naturalWidth;
+      targetHeight = Math.round(targetWidth * aspectRatio);
+      console.log('Proportional height calculated:', { targetWidth, aspectRatio, targetHeight });
     } else {
       // Apply breakpoints if defined
       for (const bp of breakpoints) {
         if (currentWidth <= bp.maxWidth && bp.width) {
           console.log('Applying breakpoint:', bp);
           targetWidth = parseDimension(bp.width, naturalWidth, isParentSize, parentWidth);
-          // If breakpoint height is missing or blank, use breakpoint width
-          targetHeight = parseDimension(
-            bp.height || bp.width,
-            naturalHeight,
-            isParentSize,
-            parentHeight
-          );
+          // Calculate height proportionally based on targetWidth and aspect ratio
+          const aspectRatio = naturalHeight / naturalWidth;
+          targetHeight = Math.round(targetWidth * aspectRatio);
+          console.log('Proportional height calculated for breakpoint:', { targetWidth, aspectRatio, targetHeight });
           break;
         }
       }
