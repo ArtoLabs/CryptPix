@@ -38,6 +38,7 @@ class CryptPixModelMixin(models.Model):
             self.tile_size = tile_size
             self.image_width = width
             self.image_height = height
+            self.hue_rotation = hue_rotation
 
             update_kwargs = {k: v for k, v in kwargs.items() if k != 'force_insert'}
             super().save(*args, **update_kwargs)
