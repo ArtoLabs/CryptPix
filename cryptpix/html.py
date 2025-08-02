@@ -26,12 +26,6 @@ def get_css():
 """
 
 
-def get_js():
-    return """
-<script src="{% static 'cryptpix/resize_image_stacks.js' %}"></script>
-"""
-
-
 def render_image_stack(url1, url2, tile_size, width, height, hue_rotation, top_img_attrs="", width_attr=None, height_attr=None, breakpoints=None, parent_size=None):
     breakpoints_json = json.dumps(breakpoints or [])
 
