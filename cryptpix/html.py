@@ -30,8 +30,12 @@ def get_js():
 <script>
 function resizeImageStacks() {
   // Helper function to parse dimension (pixels or percentage)
-  function parseDimension(value, baseDimension) {
+  function parseDimension(value, baseDimension, isParentSize, parentDimension) {
     if (!value) return baseDimension;
+    if (value.endsWith('%') && isParentSize) {
+      const percentage = parseFloat(value) / 100;
+      return Math.round(parentDimension * percentage);
+    }
     if (value.endsWith('%')) {
       const percentage = parseFloat(value) / 100;
       return Math.round(baseDimension * percentage);
@@ -53,6 +57,10 @@ function resizeImageStacks() {
     const naturalHeight = parseInt(topImg.getAttribute('data-natural-height'), 10);
     if (isNaN(naturalWidth) || isNaN(naturalHeight)) return;
 
+    const isParentSize = tileMeta.dataset.parentSize === 'true';
+    const parentWidth = isParentSize ? stack.parentElement.clientWidth : naturalWidth;
+    const parentHeight = isParentSize ? stack.parentElement.clientHeight : naturalHeight;
+
     const breakpoints = JSON.parse(tileMeta.dataset.breakpoints || '[]');
     const currentWidth = window.innerWidth;
 
@@ -61,18 +69,26 @@ function resizeImageStacks() {
 
     // Check for user-defined width and height
     if (tileMeta.dataset.width) {
-      targetWidth = parseDimension(tileMeta.dataset.width, naturalWidth);
+      targetWidth = parseDimension(tileMeta.dataset.width, naturalWidth, isParentSize, parentWidth);
       // If height is missing or blank, use width value
-      targetHeight = parseDimension(tileMeta.dataset.height || tileMeta.dataset.width, naturalHeight);
+      targetHeight = parseDimension(
+        tileMeta.dataset.height || tileMeta.dataset.width,
+        naturalHeight,
+        isParentSize,
+        parentHeight
+      );
     } else {
       // Apply breakpoints if defined
       for (const bp of breakpoints) {
-        if (currentWidth <= bp.maxWidth) {
-          if (bp.width) {
-            targetWidth = parseDimension(bp.width, naturalWidth);
-            // If breakpoint height is missing or blank, use breakpoint width
-            targetHeight = parseDimension(bp.height || bp.width, naturalHeight);
-          }
+        if (currentWidth <= bp.maxWidth && bp.width) {
+          targetWidth = parseDimension(bp.width, naturalWidth, isParentSize, parentWidth);
+          // If breakpoint height is missing or blank, use breakpoint width
+          targetHeight = parseDimension(
+            bp.height || bp.width,
+            naturalHeight,
+            isParentSize,
+            parentHeight
+          );
           break;
         }
       }
