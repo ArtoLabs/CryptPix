@@ -33,28 +33,41 @@ function resizeImageStacks() {
 
   // Helper function to parse dimension (pixels or percentage)
   function parseDimension(value, baseDimension, isParentSize, parentDimension) {
-    console.log('parseDimension:', { value, baseDimension, isParentSize, parentDimension });
-    if (!value) {
-      console.log('No value provided, using baseDimension:', baseDimension);
+    console.log('parseDimension called with:', { value, baseDimension, isParentSize, parentDimension });
+    if (!value || typeof value !== 'string') {
+      console.log('Invalid or missing value, using baseDimension:', baseDimension);
       return baseDimension;
     }
-    if (value.endsWith('%') && isParentSize) {
+    const trimmedValue = value.trim();
+    if (trimmedValue.endsWith('%') && isParentSize) {
       if (parentDimension === 0) {
         console.warn('Parent dimension is 0; falling back to base dimension:', baseDimension);
         return baseDimension;
       }
-      const percentage = parseFloat(value) / 100;
+      const percentage = parseFloat(trimmedValue) / 100;
+      if (isNaN(percentage)) {
+        console.warn('Invalid percentage value:', trimmedValue);
+        return baseDimension;
+      }
       const result = Math.round(parentDimension * percentage);
-      console.log('Calculated percentage dimension:', result);
+      console.log('Calculated parent-based percentage dimension:', result);
       return result;
     }
-    if (value.endsWith('%')) {
-      const percentage = parseFloat(value) / 100;
+    if (trimmedValue.endsWith('%')) {
+      const percentage = parseFloat(trimmedValue) / 100;
+      if (isNaN(percentage)) {
+        console.warn('Invalid percentage value:', trimmedValue);
+        return baseDimension;
+      }
       const result = Math.round(baseDimension * percentage);
       console.log('Calculated natural percentage dimension:', result);
       return result;
     }
-    const result = parseInt(value, 10);
+    const result = parseInt(trimmedValue, 10);
+    if (isNaN(result)) {
+      console.warn('Invalid pixel value:', trimmedValue);
+      return baseDimension;
+    }
     console.log('Parsed pixel dimension:', result);
     return result;
   }
@@ -117,6 +130,7 @@ function resizeImageStacks() {
 
     // Check for user-defined width and height
     if (tileMeta.dataset.width) {
+      console.log('Processing user-defined dimensions:', { width: tileMeta.dataset.width, height: tileMeta.dataset.height });
       targetWidth = parseDimension(tileMeta.dataset.width, naturalWidth, isParentSize, parentWidth);
       // If height is missing or blank, use width value
       targetHeight = parseDimension(
