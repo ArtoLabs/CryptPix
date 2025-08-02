@@ -29,39 +29,39 @@ def get_js():
     return """
 <script>
 function resizeImageStacks() {
+  console.log('resizeImageStacks running at', new Date().toISOString());
+
   // Helper function to parse dimension (pixels or percentage)
   function parseDimension(value, baseDimension, isParentSize, parentDimension) {
-    if (!value) return baseDimension;
+    console.log('parseDimension:', { value, baseDimension, isParentSize, parentDimension });
+    if (!value) {
+      console.log('No value provided, using baseDimension:', baseDimension);
+      return baseDimension;
+    }
     if (value.endsWith('%') && isParentSize) {
       if (parentDimension === 0) {
         console.warn('Parent dimension is 0; falling back to base dimension:', baseDimension);
         return baseDimension;
       }
       const percentage = parseFloat(value) / 100;
-      return Math.round(parentDimension * percentage);
+      const result = Math.round(parentDimension * percentage);
+      console.log('Calculated percentage dimension:', result);
+      return result;
     }
     if (value.endsWith('%')) {
       const percentage = parseFloat(value) / 100;
-      return Math.round(baseDimension * percentage);
+      const result = Math.round(baseDimension * percentage);
+      console.log('Calculated natural percentage dimension:', result);
+      return result;
     }
-    return parseInt(value, 10);
-  }
-
-  // Helper function to find a parent with non-zero dimensions
-  function findSizedParent(element) {
-    let parent = element.parentElement;
-    while (parent) {
-      if (parent.clientWidth > 0 && parent.clientHeight > 0) {
-        console.log('Found sized parent:', parent, 'width:', parent.clientWidth, 'height:', parent.clientHeight);
-        return parent;
-      }
-      parent = parent.parentElement;
-    }
-    console.warn('No parent with non-zero dimensions found; falling back to document body');
-    return document.body; // Fallback to document body
+    const result = parseInt(value, 10);
+    console.log('Parsed pixel dimension:', result);
+    return result;
   }
 
   document.querySelectorAll('.image-stack').forEach(function(stack) {
+    console.log('Processing image-stack:', stack);
+
     const tileMeta = stack.querySelector('.tile-meta');
     if (!tileMeta) {
       console.warn('No tile-meta found in image-stack:', stack);
@@ -73,6 +73,7 @@ function resizeImageStacks() {
       console.warn('Invalid tileSize in tile-meta:', tileMeta.dataset.tileSize);
       return;
     }
+    console.log('tileSize:', tileSize);
 
     const topImg = stack.querySelector('img[data-natural-width][data-natural-height]');
     if (!topImg) {
@@ -86,19 +87,30 @@ function resizeImageStacks() {
       console.warn('Invalid natural width/height in image:', topImg);
       return;
     }
+    console.log('Natural dimensions:', { naturalWidth, naturalHeight });
 
     const isParentSize = tileMeta.dataset.parentSize === 'true';
-    // Find parent with non-zero dimensions
-    const parentContainer = isParentSize ? findSizedParent(stack) : null;
-    const parentWidth = isParentSize ? parentContainer.clientWidth : naturalWidth;
-    const parentHeight = isParentSize ? parentContainer.clientHeight : naturalHeight;
+    console.log('isParentSize:', isParentSize);
+
+    // Use #photo-container as parent
+    const parentContainer = isParentSize ? stack.closest('#photo-container') : null;
+    if (isParentSize && !parentContainer) {
+      console.warn('No #photo-container found for image-stack:', stack);
+      return;
+    }
+
+    const parentWidth = isParentSize ? parentContainer.getBoundingClientRect().width : naturalWidth;
+    const parentHeight = isParentSize ? parentContainer.getBoundingClientRect().height : naturalHeight;
+    console.log('Parent dimensions:', { parentWidth, parentHeight, parent: parentContainer });
 
     if (isParentSize && (parentWidth === 0 || parentHeight === 0)) {
-      console.warn('Selected parent container has zero width or height:', parentContainer);
+      console.warn('Selected #photo-container has zero width or height:', parentContainer);
     }
 
     const breakpoints = JSON.parse(tileMeta.dataset.breakpoints || '[]');
+    console.log('Breakpoints:', breakpoints);
     const currentWidth = window.innerWidth;
+    console.log('Current window width:', currentWidth);
 
     let targetWidth = naturalWidth;
     let targetHeight = naturalHeight;
@@ -117,6 +129,7 @@ function resizeImageStacks() {
       // Apply breakpoints if defined
       for (const bp of breakpoints) {
         if (currentWidth <= bp.maxWidth && bp.width) {
+          console.log('Applying breakpoint:', bp);
           targetWidth = parseDimension(bp.width, naturalWidth, isParentSize, parentWidth);
           // If breakpoint height is missing or blank, use breakpoint width
           targetHeight = parseDimension(
@@ -129,18 +142,30 @@ function resizeImageStacks() {
         }
       }
     }
+    console.log('Target dimensions:', { targetWidth, targetHeight });
 
     // Quantize dimensions to the nearest tile size multiple
     const scaledWidth = Math.round(targetWidth / tileSize) * tileSize;
     const scaledHeight = Math.round(targetHeight / tileSize) * tileSize;
+    console.log('Scaled dimensions:', { scaledWidth, scaledHeight });
 
     stack.style.width = `${scaledWidth}px`;
     stack.style.height = `${scaledHeight}px`;
+    console.log('Applied styles to image-stack:', { width: stack.style.width, height: stack.style.height });
   });
 }
 
-window.addEventListener('DOMContentLoaded', resizeImageStacks);
-window.addEventListener('resize', resizeImageStacks);
+window.addEventListener('DOMContentLoaded', () => {
+  console.log('DOMContentLoaded fired at', new Date().toISOString());
+  requestAnimationFrame(() => {
+    console.log('requestAnimationFrame running resizeImageStacks');
+    resizeImageStacks();
+  });
+});
+window.addEventListener('resize', () => {
+  console.log('Window resize event at', new Date().toISOString());
+  resizeImageStacks();
+});
 </script>
 """
 
