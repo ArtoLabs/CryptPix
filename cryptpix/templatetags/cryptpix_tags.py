@@ -1,7 +1,7 @@
 from django import template
 from django.template.base import TokenType
 from django.utils.html import format_html_join
-from cryptpix.html import get_css, get_js, render_image_stack
+from cryptpix.html import get_css, render_image_stack
 from django.utils.safestring import mark_safe
 from django.utils.html import escape
 import json
@@ -11,10 +11,6 @@ register = template.Library()
 @register.simple_tag
 def cryptpix_css():
     return mark_safe(get_css())
-
-@register.simple_tag
-def cryptpix_js():
-    return mark_safe(get_js())
 
 @register.tag
 def cryptpix_image(parser, token):
