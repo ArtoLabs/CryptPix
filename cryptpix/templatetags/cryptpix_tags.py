@@ -42,9 +42,11 @@ class CryptPixImageNode(template.Node):
         self.attrs = attrs
 
     def render(self, context):
+        request = context.get('request')
         photo = self.photo_var.resolve(context)
-        url1 = getattr(photo, "image_layer_1").url
-        url2 = getattr(photo, "image_layer_2").url
+        # url1 = getattr(photo, "image_layer_1").url
+        # url2 = getattr(photo, "image_layer_2").url
+        image_id = getattr(photo, "pk", None)
         tile_size = getattr(photo, "tile_size")
         width = getattr(photo, "image_width", None)
         height = getattr(photo, "image_height", None)
@@ -74,7 +76,7 @@ class CryptPixImageNode(template.Node):
         top_img_attrs_str = " ".join(top_img_attrs)
 
         return render_image_stack(
-            url1, url2, tile_size, width, height, hue_rotation,
+            image_id, request, tile_size, width, height, hue_rotation,
             top_img_attrs=mark_safe(top_img_attrs_str),
             width_attr=width_attr, height_attr=height_attr,
             breakpoints=breakpoints, parent_size=parent_size

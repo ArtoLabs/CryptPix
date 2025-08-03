@@ -1,6 +1,11 @@
 from django.utils.html import escape, format_html
-import json
 from django.utils.safestring import mark_safe
+from django.urls import reverse
+
+from .utils import sign_image_token
+
+import json
+
 
 def get_css():
     return """
@@ -26,7 +31,12 @@ def get_css():
 """
 
 
-def render_image_stack(url1, url2, tile_size, width, height, hue_rotation, top_img_attrs="", width_attr=None, height_attr=None, breakpoints=None, parent_size=None):
+def get_secure_image_url(image_id, request):
+    token = sign_image_token(image_id, request.session.session_key)
+    return reverse('secure-image', args=[token])
+
+
+def render_image_stack(image_id, request, tile_size, width, height, hue_rotation, top_img_attrs="", width_attr=None, height_attr=None, breakpoints=None, parent_size=None):
     breakpoints_json = json.dumps(breakpoints or [])
 
     # Construct meta attributes with single quotes
@@ -44,8 +54,8 @@ def render_image_stack(url1, url2, tile_size, width, height, hue_rotation, top_i
     # Build the HTML as a plain string
     html = f"""
 <div class="image-stack">
-  <img src="{escape(url1)}" style="filter: invert(100%) hue-rotate(-{escape(hue_rotation)}deg);">
-  <img src="{escape(url2)}" style="filter: invert(100%) hue-rotate(-{escape(hue_rotation)}deg);" {top_img_attrs} data-natural-width={escape(width)} data-natural-height={escape(height)}>
+  <img src="{escape(get_secure_image_url(image_id+'_1', request))}" style="filter: invert(100%) hue-rotate(-{hue_rotation}deg);">
+  <img src="{escape(get_secure_image_url(image_id+'_2', request))}" style="filter: invert(100%) hue-rotate(-{hue_rotation}deg);" {top_img_attrs} data-natural-width={width} data-natural-height={height}>
   <div class="tile-meta" {" ".join(meta_attrs)} hidden></div>
 </div>
 """
