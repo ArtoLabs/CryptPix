@@ -16,8 +16,9 @@ def secure_image_view(request, signed_value):
 
     # Parse the image ID - assuming format: "model_pk_layer" (e.g. "product_123_1")
     try:
-        pk, layer = image_id.split('_')
+        pk, layer = image_id.split(':')
         layer = int(layer)
+        pk = int(pk)
 
         # Find the matching model
         for model in get_cryptpix_models():
