@@ -52,10 +52,12 @@ def render_image_stack(image_id, request, tile_size, width, height, hue_rotation
         meta_attrs.append(f"data-parent-size='{parent_size}'")  # Add data-parent-size
 
     # Build the HTML as a plain string
+    image_id_1 = str(image_id) + '_1'
+    image_id_2 = str(image_id) + '_2'
     html = f"""
 <div class="image-stack">
-  <img src="{escape(get_secure_image_url(image_id+'_1', request))}" style="filter: invert(100%) hue-rotate(-{hue_rotation}deg);">
-  <img src="{escape(get_secure_image_url(image_id+'_2', request))}" style="filter: invert(100%) hue-rotate(-{hue_rotation}deg);" {top_img_attrs} data-natural-width={width} data-natural-height={height}>
+  <img src="{escape(get_secure_image_url(image_id_1, request))}" style="filter: invert(100%) hue-rotate(-{hue_rotation}deg);">
+  <img src="{escape(get_secure_image_url(image_id_2, request))}" style="filter: invert(100%) hue-rotate(-{hue_rotation}deg);" {top_img_attrs} data-natural-width={width} data-natural-height={height}>
   <div class="tile-meta" {" ".join(meta_attrs)} hidden></div>
 </div>
 """
