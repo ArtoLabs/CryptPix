@@ -4,7 +4,7 @@ from django.core.signing import TimestampSigner
 signer = TimestampSigner()
 
 def sign_image_token(image_id, user_id):
-    value = f"{image_id}:{user_id}"
+    value = f"{image_id}:{session_key}"
     return signer.sign(value)
 
 def unsign_image_token(signed_value, max_age=300):
@@ -13,7 +13,7 @@ def unsign_image_token(signed_value, max_age=300):
     try:
         value = signer.unsign(signed_value, max_age=max_age)
         image_id, user_id = value.split(":")
-        return image_id, int(user_id)
+        return image_id, session_key
     except (SignatureExpired, BadSignature):
         return None, None
 

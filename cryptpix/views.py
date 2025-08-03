@@ -9,17 +9,14 @@ from .utils import unsign_image_token, get_cryptpix_models
 
 def secure_image_view(request, signed_value):
 
-    image_id, signed_user_id = unsign_image_token(signed_value, max_age=300)
+    image_id, signed_session_key = unsign_image_token(signed_value, max_age=300)
 
-    if image_id is None or signed_user_id != request.session.session_key:
+    if image_id is None or signed_session_key != request.session.session_key:
         return HttpResponseForbidden("Invalid or expired link.")
 
     # Parse the image ID - assuming format: "model_pk_layer" (e.g. "product_123_1")
     try:
-
-
-
-        pk_layer = image_id.split(':')
+        pk_layer = image_id.split('_')
         if len(pk_layer) != 2:
             raise ValueError("Invalid image_id format")
         pk, layer = pk_layer
