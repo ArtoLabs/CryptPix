@@ -16,7 +16,13 @@ def secure_image_view(request, signed_value):
 
     # Parse the image ID - assuming format: "model_pk_layer" (e.g. "product_123_1")
     try:
-        pk, layer = image_id.split(':')
+
+
+
+        pk_layer = image_id.split(':')
+        if len(pk_layer) != 2:
+            raise ValueError("Invalid image_id format")
+        pk, layer = pk_layer
         layer = int(layer)
         pk = int(pk)
 
