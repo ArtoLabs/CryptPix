@@ -1,5 +1,4 @@
 from django.core.signing import TimestampSigner
-from .integrations.django import CryptPixModelMixin
 
 
 signer = TimestampSigner()
@@ -20,8 +19,10 @@ def unsign_image_token(signed_value, max_age=300):
 
 
 def get_cryptpix_models():
+    from django.apps import apps
+    from .integrations.django import CryptPixModelMixin
     models = []
-    for model in django.apps.apps.get_models():
+    for model in apps.get_models():
         if issubclass(model, CryptPixModelMixin) and model is not CryptPixModelMixin:
             models.append(model)
     return models
