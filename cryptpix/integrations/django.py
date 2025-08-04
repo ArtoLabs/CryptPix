@@ -19,17 +19,16 @@ class CryptPixModelMixin(models.Model):
         abstract = True
 
     def save(self, *args, **kwargs):
-        is_new = self.pk is None
-        base_field = getattr(self, self.cryptpix_source_field)
+        # First, save to get a primary key if needed
+        if self.pk is None:
+            super().save(*args, **kwargs)
 
+        base_field = getattr(self, self.cryptpix_source_field)
         if base_field and hasattr(base_field, 'path'):
-            # Distort the image and get the random hue rotation
             distorted_image, hue_rotation = distort_image(base_field.path)
-            # Process the image and get cropped image, layers, and tile size
             _, layer1_io, layer2_io, tile_size, width, height = process_and_split_image(distorted_image)
             base_filename = os.path.splitext(os.path.basename(base_field.name))[0]
 
-            # Save the layers
             self.image_layer_1.save(f"{base_filename}_layer1.png", ContentFile(layer1_io.getvalue()), save=False)
             self.image_layer_2.save(f"{base_filename}_layer2.png", ContentFile(layer2_io.getvalue()), save=False)
             self.tile_size = tile_size
@@ -37,5 +36,9 @@ class CryptPixModelMixin(models.Model):
             self.image_height = height
             self.hue_rotation = hue_rotation
 
-        super().save(*args, **kwargs)
+            # Save again to persist the layers and metadata
+            super().save(update_fields=[
+                'image_layer_1', 'image_layer_2', 'tile_size',
+                'image_width', 'image_height', 'hue_rotation'
+            ])
 
