@@ -22,9 +22,6 @@ class CryptPixModelMixin(models.Model):
         is_new = self.pk is None
         base_field = getattr(self, self.cryptpix_source_field)
 
-        if is_new:
-            super().save(*args, **kwargs)
-
         if base_field and hasattr(base_field, 'path'):
             # Distort the image and get the random hue rotation
             distorted_image, hue_rotation = distort_image(base_field.path)
@@ -42,6 +39,6 @@ class CryptPixModelMixin(models.Model):
 
             update_kwargs = {k: v for k, v in kwargs.items() if k != 'force_insert'}
             super().save(*args, **update_kwargs)
-        else:
-            super().save(*args, **kwargs)
+
+        super().save(*args, **kwargs)
 
