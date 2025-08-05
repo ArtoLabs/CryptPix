@@ -164,7 +164,7 @@
 
 <pre><code class="language-python">INSTALLED_APPS = [
     ...
-    'cryptpix',
+    'cryptpix.apps.CryptPixConfig',
 ]</code></pre>
 
 <h4 id="configure-urls">Configure URLs</h4>
@@ -242,9 +242,9 @@ class MyModel(CryptPixModelMixin, models.Model):
 <p>When the model instance is saved with an image, the mixin:</p>
 
 <ul>
-  <li>Distorts the image (hue rotation and inversion).</li>
-  <li>Splits it into two layers (<code>image_layer_1</code> and <code>image_layer_2</code>).</li>
-  <li>Stores these layers in the database, along with metadata like <code>tile_size</code>, <code>image_width</code>, <code>image_height</code>, and <code>hue_rotation</code>.</li>
+  <li>Distorts the image.</li>
+  <li>Splits it into two layers.</li>
+  <li>Stores these layers in the database, along with metadata.</li>
 </ul>
 
 <p>The original image remains in the source field unless you restrict access (see next section).</p>
