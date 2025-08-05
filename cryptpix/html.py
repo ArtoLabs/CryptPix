@@ -32,23 +32,13 @@ def get_css():
 
 
 def get_secure_image_url(image_id, request):
-    # Debug session information
-    print(f"DEBUG - Image ID: {image_id}")
-    print(f"DEBUG - Session key: {request.session.session_key}")
-    print(f"DEBUG - Session exists: {request.session.exists(request.session.session_key)}")
-
     # Ensure session key exists
     if not request.session.session_key:
         request.session.create()
-        print(f"DEBUG - Created new session key: {request.session.session_key}")
-
+        # print(f"DEBUG - Created new session key: {request.session.session_key}")
     # Generate token with logging
     token = sign_image_token(image_id, request.session.session_key)
-    print(f"DEBUG - Generated token: {token}")
-
     url = reverse('secure-image', args=[token])
-    print(f"DEBUG - Final URL: {url}")
-
     return url
 
 

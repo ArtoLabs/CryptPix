@@ -43,29 +43,35 @@ class CryptPixImageNode(template.Node):
 
     def render(self, context):
         request = context.get('request')
-        photo = self.photo_var.resolve(context)
-        # url1 = getattr(photo, "image_layer_1").url
-        # url2 = getattr(photo, "image_layer_2").url
-        image_id = getattr(photo, "pk", None)
-        tile_size = getattr(photo, "tile_size")
-        width = getattr(photo, "image_width", None)
-        height = getattr(photo, "image_height", None)
-        hue_rotation = getattr(photo, "hue_rotation", None)
+        try:
+            photo = self.photo_var.resolve(context)
+            # url1 = getattr(photo, "image_layer_1").url
+            # url2 = getattr(photo, "image_layer_2").url
+            image_id = getattr(photo, "pk", None)
+            tile_size = getattr(photo, "tile_size", None)
+            width = getattr(photo, "image_width", None)
+            height = getattr(photo, "image_height", None)
+            hue_rotation = getattr(photo, "hue_rotation", None)
 
-        # Allow override via tag attributes
-        width_attr = self.attrs.get('width')
-        height_attr = self.attrs.get('height')
-        breakpoints = self.attrs.get('breakpoints')
-        parent_size = self.attrs.get('data-parent-size')  # New attribute for data-parent-size
+            # Allow override via tag attributes
+            width_attr = self.attrs.get('width')
+            height_attr = self.attrs.get('height')
+            breakpoints = self.attrs.get('breakpoints')
+            parent_size = self.attrs.get('data-parent-size')  # New attribute for data-parent-size
 
-        if width_attr:
-            width_attr = width_attr.resolve(context)
-        if height_attr:
-            height_attr = height_attr.resolve(context)
-        if breakpoints:
-            breakpoints = json.loads(breakpoints.resolve(context))
-        if parent_size:
-            parent_size = parent_size.resolve(context)
+            if width_attr:
+                width_attr = width_attr.resolve(context)
+            if height_attr:
+                height_attr = height_attr.resolve(context)
+            if breakpoints:
+                breakpoints = json.loads(breakpoints.resolve(context))
+            if parent_size:
+                parent_size = parent_size.resolve(context)
+
+        except template.VariableDoesNotExist:
+            return "<!-- CryptPix Error: Photo variable does not exist in context -->"
+        except Exception as e:
+            return f"<!-- CryptPix Error: {str(e)} -->"
 
         top_img_attrs = []
         for key, val in self.attrs.items():
