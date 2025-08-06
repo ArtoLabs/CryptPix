@@ -17,6 +17,8 @@ def get_css():
     display: inline-block;
     image-rendering: -webkit-optimize-contrast;
     image-rendering: crisp-edges;
+    background-color: rgba(0, 0, 0, 0);
+    z-index: 10;
   }
   .image-stack img {
     position: absolute;
