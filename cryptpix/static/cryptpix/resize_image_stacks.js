@@ -150,3 +150,21 @@ window.addEventListener('resize', () => {
   console.log('Window resize event at', new Date().toISOString());
   resizeImageStacks();
 });
+
+// Prevent right-clicking only on images
+document.addEventListener('contextmenu', function(event) {
+  // Check if the clicked element is an image
+  if (event.target.tagName === 'IMG') {
+    event.preventDefault();
+    return false;
+  }
+  // Allow context menu on all other elements
+}, false);
+
+// Optional: Add a message when users attempt to right-click on images
+document.addEventListener('mousedown', function(event) {
+  if (event.button === 2 && event.target.tagName === 'IMG') { // Right mouse button on image
+    console.log('Right-clicking on images is disabled');
+    return false;
+  }
+}, false);
