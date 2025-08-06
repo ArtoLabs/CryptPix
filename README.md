@@ -319,6 +319,41 @@ class MyModel(CryptPixModelMixin, models.Model):
 
 <p>Optionally, configure a private directory or custom storage backend.</p>
 
+<h3 id="generating-secure-url">Generating a Secure URL for the Original Image</h3>
+
+<p>In cases where you cannot use the <code>{% cryptpix_image %}</code> template tag (e.g., when passing an image URL to a third-party JavaScript application that does not support the CryptPix HTML snippet), you can use the <code>get_secure_image_url</code> function to generate a short-lived, secure URL for the original image. This approach bypasses the CryptPix distortion layers but still provides protection through a signed, ephemeral URL that prevents scraping.</p>
+
+<p><strong>Example Usage in a View:</strong></p>
+
+<pre><code class="language-python">from cryptpix.html import get_secure_image_url
+
+def my_view(request):
+    title_media = MyModel.objects.get(pk=1)  # Example model instance
+    image_pk = str(title_media.media.pk) + '_0' if title_media and title_media.media else None
+    media_url = get_secure_image_url(image_pk, request) if image_pk else None
+    return render(request, 'my_template.html', {'media_url': media_url})
+</code></pre>
+
+<p><strong>Explanation:</strong></p>
+<ul>
+  <li>The <code>image_pk</code> is constructed by appending <code>'_0'</code> to the model instance’s primary key (e.g., <code>media.pk</code>). This ensures the original image is retrieved instead of the distorted layers.</li>
+  <li>The <code>get_secure_image_url</code> function generates a signed URL tied to the user’s session, which expires quickly (default: 5 seconds) to prevent unauthorized access or scraping.</li>
+  <li>Use this URL in contexts where a direct image URL is required, such as passing it to a third-party JavaScript library.</li>
+</ul>
+
+<p><strong>Template Usage:</strong></p>
+<p>Pass the generated URL to your template and use it in an <code>&lt;img&gt;</code> tag or JavaScript code:</p>
+
+<pre><code class="language-html">&lt;img src="{{ media_url }}" alt="Protected Image"&gt;
+</code></pre>
+
+<p><strong>Important Notes:</strong></p>
+<ul>
+  <li>Always append <code>'_0'</code> to the image’s primary key to retrieve the original image.</li>
+  <li>The generated URL is short-lived, providing a layer of protection against scraping, even without the CryptPix distortion layers.</li>
+  <li>Avoid exposing the original image’s storage path (e.g., <code>{{ object.image.url }}</code>) to maintain security.</li>
+</ul>
+
 <h3 id="configuration-options">Configuration Options</h3>
 
 <ul>
