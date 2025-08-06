@@ -27,7 +27,13 @@ def secure_image_view(request, signed_value):
         for model in get_cryptpix_models():
             try:
                 instance = model.objects.get(pk=pk)
-                if layer == 1 and instance.image_layer_1:
+                if layer == 0:
+                    # Access the original image field using the cryptpix_source_field attribute
+                    field_name = instance.cryptpix_source_field
+                    image_field = getattr(instance, field_name)
+                    if image_field:
+                        return FileResponse(image_field.open('rb'), content_type='image/jpeg')
+                elif layer == 1 and instance.image_layer_1:
                     return FileResponse(instance.image_layer_1.open('rb'), content_type='image/jpeg')
                 elif layer == 2 and instance.image_layer_2:
                     return FileResponse(instance.image_layer_2.open('rb'), content_type='image/jpeg')
