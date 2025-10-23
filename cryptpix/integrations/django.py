@@ -1,6 +1,7 @@
 import os
 from io import BytesIO
 from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.db import models
 from cryptpix import process_and_split_image, distort_image  # Updated function that returns tile size too
 
@@ -18,31 +19,59 @@ class CryptPixModelMixin(models.Model):
     class Meta:
         abstract = True
 
-    def save(self, *args, **kwargs):
-        # First, save to get a primary key if needed
-        if self.pk is None:
-            super().save(*args, **kwargs)
+    import os
+    from io import BytesIO
+    from django.core.files.base import ContentFile
+    from django.core.files.storage import default_storage
+    from django.db import models
+    from cryptpix import process_and_split_image, distort_image
 
-        base_field = getattr(self, self.cryptpix_source_field)
-        if base_field and hasattr(base_field, 'path'):
-            distorted_image, hue_rotation = distort_image(base_field.path)
-            _, layer1_io, layer2_io, tile_size, width, height = process_and_split_image(distorted_image)
-            base_filename = os.path.splitext(os.path.basename(base_field.name))[0]
+    class CryptPixModelMixin(models.Model):
+        image_layer_1 = models.ImageField(upload_to='cryptpix/', editable=False, null=True, blank=True)
+        image_layer_2 = models.ImageField(upload_to='cryptpix/', editable=False, null=True, blank=True)
+        tile_size = models.PositiveSmallIntegerField(editable=False, null=True, blank=True)
+        image_width = models.PositiveIntegerField(editable=False, null=True, blank=True)
+        image_height = models.PositiveIntegerField(editable=False, null=True, blank=True)
+        hue_rotation = models.PositiveSmallIntegerField(editable=False, null=True, blank=True)
 
-            self.image_layer_1.save(f"{base_filename}_layer1.png", ContentFile(layer1_io.getvalue()), save=False)
-            self.image_layer_2.save(f"{base_filename}_layer2.png", ContentFile(layer2_io.getvalue()), save=False)
-            self.tile_size = tile_size
-            self.image_width = width
-            self.image_height = height
-            self.hue_rotation = hue_rotation
+        cryptpix_source_field = 'image'
 
-            cryptpix_fields = [
-                'image_layer_1', 'image_layer_2', 'tile_size',
-                'image_width', 'image_height', 'hue_rotation'
-            ]
+        class Meta:
+            abstract = True
 
-            if self.thumbnail:
-                cryptpix_fields.append('thumbnail')
+        def save(self, *args, **kwargs):
+            # First, save to get a primary key if needed
+            if self.pk is None:
+                super().save(*args, **kwargs)
 
-            super().save(update_fields=cryptpix_fields)
+            base_field = getattr(self, self.cryptpix_source_field)
+            if base_field and hasattr(base_field, 'path'):
+                distorted_image, hue_rotation = distort_image(base_field.path)
+                _, layer1_io, layer2_io, tile_size, width, height = process_and_split_image(distorted_image)
+                base_filename = os.path.splitext(os.path.basename(base_field.name))[0]
+
+                # FIXED: Direct storage save - NO ImageField.save()
+                layer1_path = f"cryptpix/{base_filename}_layer1.png"
+                layer2_path = f"cryptpix/{base_filename}_layer2.png"
+
+                default_storage.save(layer1_path, ContentFile(layer1_io.getvalue()))
+                default_storage.save(layer2_path, ContentFile(layer2_io.getvalue()))
+
+                # Set the field names (just paths, no validation)
+                self.image_layer_1.name = layer1_path
+                self.image_layer_2.name = layer2_path
+
+                self.tile_size = tile_size
+                self.image_width = width
+                self.image_height = height
+                self.hue_rotation = hue_rotation
+
+                cryptpix_fields = [
+                    'image_layer_1', 'image_layer_2', 'tile_size',
+                    'image_width', 'image_height', 'hue_rotation'
+                ]
+                if self.thumbnail:
+                    cryptpix_fields.append('thumbnail')
+
+                super().save(update_fields=cryptpix_fields)
 
