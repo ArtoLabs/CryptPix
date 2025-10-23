@@ -5,8 +5,9 @@ from django.db import models
 from cryptpix import process_and_split_image, distort_image  # Updated function that returns tile size too
 
 class CryptPixModelMixin(models.Model):
-    image_layer_1 = models.ImageField(upload_to='cryptpix/', editable=False, null=True, blank=True)
-    image_layer_2 = models.ImageField(upload_to='cryptpix/', editable=False, null=True, blank=True)
+    cp_dir = "cryptpix/%Y-%m-%d-%H-%M"
+    image_layer_1 = models.ImageField(upload_to=cp_dir, editable=False, null=True, blank=True)
+    image_layer_2 = models.ImageField(upload_to=cp_dir, editable=False, null=True, blank=True)
     tile_size = models.PositiveSmallIntegerField(editable=False, null=True, blank=True)
     image_width = models.PositiveIntegerField(editable=False, null=True, blank=True)
     image_height = models.PositiveIntegerField(editable=False, null=True, blank=True)
