@@ -36,9 +36,13 @@ class CryptPixModelMixin(models.Model):
             self.image_height = height
             self.hue_rotation = hue_rotation
 
-            # Save again to persist the layers and metadata
-            super().save(update_fields=[
+            cryptpix_fields = [
                 'image_layer_1', 'image_layer_2', 'tile_size',
                 'image_width', 'image_height', 'hue_rotation'
-            ])
+            ]
+
+            if self.thumbnail:
+                cryptpix_fields.append('thumbnail')
+
+            super().save(update_fields=cryptpix_fields)
 
