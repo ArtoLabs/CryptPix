@@ -168,3 +168,21 @@ document.addEventListener('mousedown', function(event) {
     return false;
   }
 }, false);
+
+
+document.addEventListener("DOMContentLoaded", function() {
+    const lazyImages = document.querySelectorAll("img.lazy");
+
+    const observer = new IntersectionObserver((entries, obs) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const img = entry.target;
+                img.src = img.dataset.src;    // set real URL
+                img.classList.remove("lazy"); // stop observing
+                obs.unobserve(img);
+            }
+        });
+    });
+
+    lazyImages.forEach(img => observer.observe(img));
+});
