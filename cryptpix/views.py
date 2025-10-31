@@ -9,7 +9,7 @@ from .utils import unsign_image_token, get_cryptpix_models
 
 def secure_image_view(request, signed_value):
 
-    image_id, signed_session_key = unsign_image_token(signed_value, max_age=5)
+    image_id, signed_session_key = unsign_image_token(signed_value, max_age=300)
 
     if image_id is None or signed_session_key != request.session.session_key:
         return HttpResponseForbidden("Invalid or expired link.")
