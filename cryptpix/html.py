@@ -64,8 +64,8 @@ def render_image_stack(image_id, request, tile_size, width, height, hue_rotation
     image_id_2 = str(image_id) + '_2'
     html = f"""
 <div class="image-stack">
-  <img src="{escape(get_secure_image_url(image_id_1, request))}" style="filter: invert(100%) hue-rotate(-{hue_rotation}deg);">
-  <img src="{escape(get_secure_image_url(image_id_2, request))}" style="filter: invert(100%) hue-rotate(-{hue_rotation}deg);" {top_img_attrs} data-natural-width={width} data-natural-height={height}>
+  <img src="{escape(get_secure_image_url(image_id_1, request))}" loading="lazy" style="filter: invert(100%) hue-rotate(-{hue_rotation}deg);">
+  <img src="{escape(get_secure_image_url(image_id_2, request))}" loading="lazy" style="filter: invert(100%) hue-rotate(-{hue_rotation}deg);" {top_img_attrs} data-natural-width={width} data-natural-height={height}>
   <div class="tile-meta" {" ".join(meta_attrs)} hidden></div>
 </div>
 """
