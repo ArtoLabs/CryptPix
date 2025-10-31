@@ -1,11 +1,9 @@
 
 
 function resizeImageStacks() {
-  console.log('resizeImageStacks running at', new Date().toISOString());
 
   // Helper function to parse dimension (pixels or percentage)
   function parseDimension(value, baseDimension, isParentSize, parentDimension) {
-    console.log('parseDimension called with:', { value, baseDimension, isParentSize, parentDimension });
     if (!value || typeof value !== 'string') {
       console.log('Invalid or missing value, using baseDimension:', baseDimension);
       return baseDimension;
@@ -22,7 +20,6 @@ function resizeImageStacks() {
         return baseDimension;
       }
       const result = Math.round(parentDimension * percentage);
-      console.log('Calculated parent-based percentage dimension:', result);
       return result;
     }
     if (trimmedValue.endsWith('%')) {
@@ -32,7 +29,6 @@ function resizeImageStacks() {
         return baseDimension;
       }
       const result = Math.round(baseDimension * percentage);
-      console.log('Calculated natural percentage dimension:', result);
       return result;
     }
     const result = parseInt(trimmedValue, 10);
@@ -40,7 +36,6 @@ function resizeImageStacks() {
       console.warn('Invalid pixel value:', trimmedValue);
       return baseDimension;
     }
-    console.log('Parsed pixel dimension:', result);
     return result;
   }
 
@@ -58,7 +53,6 @@ function resizeImageStacks() {
       console.warn('Invalid tileSize in tile-meta:', tileMeta.dataset.tileSize);
       return;
     }
-    console.log('tileSize:', tileSize);
 
     const topImg = stack.querySelector('img[data-natural-width][data-natural-height]');
     if (!topImg) {
@@ -72,30 +66,20 @@ function resizeImageStacks() {
       console.warn('Invalid natural width/height in image:', topImg);
       return;
     }
-    console.log('Natural dimensions:', { naturalWidth, naturalHeight });
+
 
     const isParentSize = tileMeta.dataset.parentSize === 'true';
-    console.log('isParentSize:', isParentSize);
 
     // Use #photo-container as parent
     const parentContainer = isParentSize ? stack.closest('#photo-container') : null;
-    if (isParentSize && !parentContainer) {
-      console.warn('No #photo-container found for image-stack:', stack);
-      return;
-    }
 
     const parentWidth = isParentSize ? parentContainer.getBoundingClientRect().width : naturalWidth;
     const parentHeight = isParentSize ? parentContainer.getBoundingClientRect().height : naturalHeight;
-    console.log('Parent dimensions:', { parentWidth, parentHeight, parent: parentContainer });
-
-    if (isParentSize && (parentWidth === 0 || parentHeight === 0)) {
-      console.warn('Selected #photo-container has zero width or height:', parentContainer);
-    }
 
     const breakpoints = JSON.parse(tileMeta.dataset.breakpoints || '[]');
-    console.log('Breakpoints:', breakpoints);
+
     const currentWidth = window.innerWidth;
-    console.log('Current window width:', currentWidth);
+
 
     let targetWidth = naturalWidth;
     let targetHeight = naturalHeight;
@@ -103,25 +87,21 @@ function resizeImageStacks() {
     // Check for user-defined width and height
     const widthAttr = tileMeta.dataset.width || (isParentSize ? '100%' : null);
     const heightAttr = tileMeta.dataset.height;
-    console.log('Attributes:', { widthAttr, heightAttr });
+
 
     if (widthAttr) {
-      console.log('Processing user-defined dimensions:', { width: widthAttr, height: heightAttr });
       targetWidth = parseDimension(widthAttr, naturalWidth, isParentSize, parentWidth);
       // Calculate height proportionally based on targetWidth and aspect ratio
       const aspectRatio = naturalHeight / naturalWidth;
       targetHeight = Math.round(targetWidth * aspectRatio);
-      console.log('Proportional height calculated:', { targetWidth, aspectRatio, targetHeight });
     } else {
       // Apply breakpoints if defined
       for (const bp of breakpoints) {
         if (currentWidth <= bp.maxWidth && bp.width) {
-          console.log('Applying breakpoint:', bp);
           targetWidth = parseDimension(bp.width, naturalWidth, isParentSize, parentWidth);
           // Calculate height proportionally based on targetWidth and aspect ratio
           const aspectRatio = naturalHeight / naturalWidth;
           targetHeight = Math.round(targetWidth * aspectRatio);
-          console.log('Proportional height calculated for breakpoint:', { targetWidth, aspectRatio, targetHeight });
           break;
         }
       }
@@ -131,23 +111,17 @@ function resizeImageStacks() {
     // Quantize dimensions to the nearest tile size multiple
     const scaledWidth = Math.round(targetWidth / tileSize) * tileSize;
     const scaledHeight = Math.round(targetHeight / tileSize) * tileSize;
-    console.log('Scaled dimensions:', { scaledWidth, scaledHeight });
-
     stack.style.width = `${scaledWidth}px`;
     stack.style.height = `${scaledHeight}px`;
-    console.log('Applied styles to image-stack:', { width: stack.style.width, height: stack.style.height });
   });
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  console.log('DOMContentLoaded fired at', new Date().toISOString());
   requestAnimationFrame(() => {
-    console.log('requestAnimationFrame running resizeImageStacks');
     resizeImageStacks();
   });
 });
 window.addEventListener('resize', () => {
-  console.log('Window resize event at', new Date().toISOString());
   resizeImageStacks();
 });
 
@@ -171,6 +145,7 @@ document.addEventListener('mousedown', function(event) {
 
 
 document.addEventListener("DOMContentLoaded", function() {
+    console.log("IntersectionObserver:", "IntersectionObserver" in window);
     const lazyImages = document.querySelectorAll("img.lazy");
 
     const observer = new IntersectionObserver((entries, obs) => {

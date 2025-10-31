@@ -44,8 +44,32 @@ def get_secure_image_url(image_id, request):
     return url
 
 
+def add_lazy_class(attrs: str) -> str:
+    """
+    Ensure that the 'lazy' class is added to the class attribute in attrs.
+    If no class attribute exists, add one.
+    """
+    import re
+
+    # Search for existing class attribute
+    class_match = re.search(r'class=["\'](.*?)["\']', attrs)
+    if class_match:
+        # Append 'lazy' if it's not already there
+        classes = class_match.group(1).split()
+        if 'lazy' not in classes:
+            classes.append('lazy')
+        # Replace the old class attribute with the new one
+        attrs = re.sub(r'class=["\'](.*?)["\']', f'class="{" ".join(classes)}"', attrs)
+    else:
+        # No class attribute exists, add one at the beginning
+        attrs = f'class="lazy" {attrs}'.strip()
+
+    return attrs
+
+
 def render_image_stack(image_id, request, tile_size, width, height, hue_rotation, top_img_attrs="", width_attr=None, height_attr=None, breakpoints=None, parent_size=None):
     breakpoints_json = json.dumps(breakpoints or [])
+    top_img_attrs = add_lazy_class(top_img_attrs)
 
     # Construct meta attributes with single quotes
     meta_attrs = [
@@ -64,8 +88,8 @@ def render_image_stack(image_id, request, tile_size, width, height, hue_rotation
     image_id_2 = str(image_id) + '_2'
     html = f"""
 <div class="image-stack">
-  <img data-src="{escape(get_secure_image_url(image_id_1, request))}" class="lazy" loading="lazy" style="filter: invert(100%) hue-rotate(-{hue_rotation}deg);">
-  <img data-src="{escape(get_secure_image_url(image_id_2, request))}" class="lazy" loading="lazy" style="filter: invert(100%) hue-rotate(-{hue_rotation}deg);" {top_img_attrs} data-natural-width={width} data-natural-height={height}>
+  <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" data-src="{escape(get_secure_image_url(image_id_1, request))}" loading="lazy" style="filter: invert(100%) hue-rotate(-{hue_rotation}deg);" class="lazy">
+  <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" data-src="{escape(get_secure_image_url(image_id_2, request))}" loading="lazy" style="filter: invert(100%) hue-rotate(-{hue_rotation}deg);" {top_img_attrs} data-natural-width={width} data-natural-height={height}>
   <div class="tile-meta" {" ".join(meta_attrs)} hidden></div>
 </div>
 """
