@@ -145,15 +145,18 @@ document.addEventListener('mousedown', function(event) {
 
 
 document.addEventListener("DOMContentLoaded", function() {
-    console.log("IntersectionObserver:", "IntersectionObserver" in window);
     const lazyImages = document.querySelectorAll("img.lazy");
 
     const observer = new IntersectionObserver((entries, obs) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
                 const img = entry.target;
-                img.src = img.dataset.src;    // set real URL
-                img.classList.remove("lazy"); // stop observing
+                const src = img.dataset.src;
+
+                img.src = src;
+                img.addEventListener('load', () => {
+                    img.classList.remove("lazy");
+                });
                 obs.unobserve(img);
             }
         });
@@ -161,3 +164,4 @@ document.addEventListener("DOMContentLoaded", function() {
 
     lazyImages.forEach(img => observer.observe(img));
 });
+
