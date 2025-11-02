@@ -153,19 +153,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const img = entry.target;
 
-            // ---- When the *real* image finishes loading ----
-            const onRealImageLoad = () => {
-                img.classList.remove("lazy");   // optional cleanup
-                img.classList.add("loaded");    // <-- triggers fade-in
-                img.removeEventListener("load", onRealImageLoad);
+            // Swap in the real src
+            const realSrc = img.dataset.src;
+            img.src = realSrc;
+
+            // Poll until the real image is decoded
+            const checkLoaded = () => {
+                if (img.complete && img.naturalWidth > 1) {  // >1 = not 1x1 placeholder
+                    console.log("REAL IMAGE DECODED — FADING IN");
+                    img.classList.add("loaded");
+                    obs.unobserve(img);
+                } else {
+                    requestAnimationFrame(checkLoaded);
+                }
             };
 
-            img.addEventListener("load", onRealImageLoad);
-
-            // ---- Start downloading the real image ----
-            img.src = img.dataset.src;
-
-            // ---- Stop observing this image ----
+            checkLoaded();
             obs.unobserve(img);
         });
     });
