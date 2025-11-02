@@ -33,8 +33,8 @@ def get_css():
 img.lazy {
     opacity: 0;
     filter: blur(3px);                     /* optional: soft loading feel */
-    transition: opacity 0.5s ease-out,
-                filter 0.5s ease-out;
+    transition: opacity 2s ease-out,
+                filter 2s ease-out;
     transform: translateZ(0);              /* forces GPU acceleration (optional) */
 }
 
