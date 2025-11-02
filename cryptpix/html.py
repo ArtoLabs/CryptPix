@@ -29,6 +29,20 @@ def get_css():
     object-fit: contain;
     image-rendering: pixelated;
   }
+  /* 1. Start invisible + optional subtle blur */
+img.lazy {
+    opacity: 0;
+    filter: blur(3px);                     /* optional: soft loading feel */
+    transition: opacity 0.5s ease-out,
+                filter 0.5s ease-out;
+    transform: translateZ(0);              /* forces GPU acceleration (optional) */
+}
+
+/* 2. Fade in when real image loads */
+img.lazy.loaded {
+    opacity: 1;
+    filter: blur(0);
+}
 </style>
 """
 
