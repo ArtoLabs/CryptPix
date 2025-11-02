@@ -153,11 +153,14 @@ class LazyLoader {
     this.tracked = new Set();   // all images we are watching
   }
 
-  observe(img) {
-    if (!img.dataset.src || this.tracked.has(img)) return;
-    this.tracked.add(img);
-    this.observer.observe(img);
-  }
+    observe(img) {
+      if (!img.dataset.src || img.classList.contains('loaded')) return;
+      // Allow re-observe even if src is set (it might be loading)
+      if (!this.tracked.has(img)) {
+        this.tracked.add(img);
+        this.observer.observe(img);
+      }
+    }
 
   unobserve(img) {
     this.tracked.delete(img);
@@ -284,7 +287,7 @@ class ScrollController {
       let observedCount = 0;
 
       document.querySelectorAll('img.lazy').forEach(img => {
-        if (img.classList.contains('loaded') || img.src) return;
+        if (img.classList.contains('loaded')) return;
 
         const rect = img.getBoundingClientRect();
         const imgTop = rect.top + window.scrollY;
