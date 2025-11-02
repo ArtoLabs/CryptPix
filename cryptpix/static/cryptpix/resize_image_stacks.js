@@ -143,25 +143,34 @@ document.addEventListener('mousedown', function(event) {
   }
 }, false);
 
-
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", function () {
     const lazyImages = document.querySelectorAll("img.lazy");
 
     const observer = new IntersectionObserver((entries, obs) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
                 const img = entry.target;
-                const realSrc = img.dataset.src;
+
+                // Optional: if src is already set (e.g. preloaded), skip
+                if (img.src === img.dataset.src) {
+                    img.classList.add("loaded");
+                    obs.unobserve(img);
+                    return;
+                }
+
+                // When real image finishes loading → fade in
+                const onLoad = () => {
+                    img.classList.remove("lazy");
+                    img.classList.add("loaded");
+                    img.removeEventListener("load", onLoad);
+                };
+
+                img.addEventListener("load", onLoad);
 
                 // Start loading the real image
-                img.src = realSrc;
+                img.src = img.dataset.src;
 
-                // Wait until the image finishes loading before showing it
-                img.addEventListener("load", () => {
-                    img.classList.add("loaded"); // fade-in trigger
-                    img.classList.remove("lazy"); // cleanup
-                }, { once: true });
-
+                // Clean up observer
                 obs.unobserve(img);
             }
         });
