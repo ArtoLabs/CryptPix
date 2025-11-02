@@ -32,16 +32,12 @@ def get_css():
   /* 1. Start invisible + optional subtle blur */
 img.lazy {
     opacity: 0;
-    filter: blur(3px);                     /* optional: soft loading feel */
-    transition: opacity 2s ease-out,
-                filter 2s ease-out;
-    transform: translateZ(0);              /* forces GPU acceleration (optional) */
+    transition: opacity 1.2s ease-out;   /* ← ONLY opacity transition */
+    transform: translateZ(0);            /* ← Forces GPU, prevents skip */
 }
 
-/* 2. Fade in when real image loads */
 img.lazy.loaded {
     opacity: 1;
-    filter: blur(0);
 }
 </style>
 """
