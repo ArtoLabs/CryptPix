@@ -141,26 +141,26 @@ document.addEventListener('mousedown', function(event) {
 }, false);
 
 
+
 /* ============================================================= */
-/* 1. LAZY LOADER – fixed, reliable, never unobserves too early */
+/* 1. LAZY LOADER – fixed, reliable, forces re-entry after pause */
 /* ============================================================= */
 class LazyLoader {
   constructor() {
     this.observer = new IntersectionObserver(
       this.handleIntersect.bind(this),
-      { rootMargin: '200px' }   // start loading a little early
+      { rootMargin: '200px' }
     );
     this.tracked = new Set();   // all images we are watching
   }
 
-    observe(img) {
-      if (!img.dataset.src || img.classList.contains('loaded')) return;
-      // Allow re-observe even if src is set (it might be loading)
-      if (!this.tracked.has(img)) {
-        this.tracked.add(img);
-        this.observer.observe(img);
-      }
+  observe(img) {
+    if (!img.dataset.src || img.classList.contains('loaded')) return;
+    if (!this.tracked.has(img)) {
+      this.tracked.add(img);
+      this.observer.observe(img);
     }
+  }
 
   unobserve(img) {
     this.tracked.delete(img);
@@ -169,6 +169,19 @@ class LazyLoader {
 
   unobserveAll() {
     this.tracked.forEach(img => this.observer.unobserve(img));
+    this.tracked.clear();
+  }
+
+  // CRITICAL: Forces observer to re-check all entries
+  reconnect() {
+    this.observer.disconnect();
+    setTimeout(() => {
+      this.tracked.forEach(img => {
+        if (!img.classList.contains('loaded')) {
+          this.observer.observe(img);
+        }
+      });
+    }, 0);
   }
 
   handleIntersect(entries) {
@@ -180,12 +193,12 @@ class LazyLoader {
 
   loadImage(img) {
     const src = img.dataset.src;
-    img.src = src;                     // start download
+    img.src = src;
 
     const poll = () => {
       if (img.complete && img.naturalWidth > 0) {
         img.classList.add('loaded');
-        this.unobserve(img);         // only now — after decode
+        this.unobserve(img);
       } else {
         requestAnimationFrame(poll);
       }
@@ -274,55 +287,34 @@ class ScrollController {
     this.paused = false;
     console.log('RESUMED – loading visible images');
     this.observeVisible();
+    this.loader.reconnect();  // Forces IntersectionObserver to re-check
   }
 
-    observeVisible() {
-      console.log('%c=== observeVisible() CALLED ===', 'color: orange; font-weight: bold');
-      const vh = window.innerHeight;
-      const top = window.scrollY;
-      const bot = top + vh;
-      const buf = 300;
+  observeVisible() {
+    const vh = window.innerHeight;
+    const top = window.scrollY;
+    const bot = top + vh;
+    const buf = 300;
 
-      const candidates = [];
-      let observedCount = 0;
+    let observed = 0;
+    document.querySelectorAll('img.lazy').forEach(img => {
+      if (img.classList.contains('loaded')) return;
 
-      document.querySelectorAll('img.lazy').forEach(img => {
-        if (img.classList.contains('loaded')) return;
+      const rect = img.getBoundingClientRect();
+      const imgTop = rect.top + window.scrollY;
+      const imgBottom = imgTop + rect.height;
 
-        const rect = img.getBoundingClientRect();
-        const imgTop = rect.top + window.scrollY;
-        const imgBottom = imgTop + rect.height;
-
-        const isVisible = imgBottom > top - buf && imgTop < bot + buf;
-
-        candidates.push({
-          img,
-          isVisible,
-          top: imgTop,
-          bottom: imgBottom,
-          viewport: { top, bot }
-        });
-
-        if (isVisible) {
-          this.loader.observe(img);
-          observedCount++;
+      if (imgBottom > top - buf && imgTop < bot + buf) {
+        if (!this.loader.tracked.has(img)) {
+          this.loader.tracked.add(img);
         }
-      });
-
-      console.log(`Found ${candidates.length} placeholder images`);
-      console.log(`→ ${observedCount} are visible → calling loader.observe()`);
-      console.table(candidates.map(c => ({
-        visible: c.isVisible ? 'YES' : 'no',
-        imgTop: c.top.toFixed(0),
-        imgBot: c.bottom.toFixed(0),
-        vpTop: c.viewport.top.toFixed(0),
-        vpBot: c.viewport.bot.toFixed(0)
-      })));
-
-      if (observedCount === 0 && candidates.length > 0) {
-        console.warn('NO images observed — but placeholders exist!');
+        this.loader.observer.observe(img);
+        observed++;
       }
-    }
+    });
+
+    console.log(`→ Re-observed ${observed} visible images`);
+  }
 }
 
 /* ============================================================= */
@@ -333,17 +325,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const speed = new ScrollSpeed(3000);
   const controller = new ScrollController(loader, speed, 180);
 
-  // THIS MUST RUN AFTER IMAGES EXIST
+  // Observe ALL lazy images
   const lazyImages = document.querySelectorAll('img.lazy');
   console.log(`Found ${lazyImages.length} lazy images on load`);
   lazyImages.forEach(img => loader.observe(img));
 
+  // Start systems
   speed.start();
   controller.start();
-  controller.observeVisible();  // initial visible
 
+  // Initial visible load
+  controller.observeVisible();
+
+  // Debug helper
   window._debugLazy = { loader, speed, controller };
 });
+
 
 
 
