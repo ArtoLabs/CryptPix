@@ -143,36 +143,29 @@ document.addEventListener('mousedown', function(event) {
   }
 }, false);
 
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", () => {
     const lazyImages = document.querySelectorAll("img.lazy");
 
     const observer = new IntersectionObserver((entries, obs) => {
         entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                const img = entry.target;
+            if (!entry.isIntersecting) return;
 
-                // Optional: if src is already set (e.g. preloaded), skip
-                if (img.src === img.dataset.src) {
-                    img.classList.add("loaded");
-                    obs.unobserve(img);
-                    return;
-                }
+            const img = entry.target;
 
-                // When real image finishes loading → fade in
-                const onLoad = () => {
-                    img.classList.remove("lazy");
-                    img.classList.add("loaded");
-                    img.removeEventListener("load", onLoad);
-                };
+            // ---- If the image is already cached, onload fires synchronously ----
+            const finish = () => {
+                img.classList.remove("lazy");
+                img.classList.add("loaded");
+                img.removeEventListener("load", finish);
+            };
 
-                img.addEventListener("load", onLoad);
+            img.addEventListener("load", finish);
 
-                // Start loading the real image
-                img.src = img.dataset.src;
+            // ---- Start the real download ----
+            img.src = img.dataset.src;
 
-                // Clean up observer
-                obs.unobserve(img);
-            }
+            // ---- Stop observing ----
+            obs.unobserve(img);
         });
     });
 
