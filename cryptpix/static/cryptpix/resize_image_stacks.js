@@ -151,12 +151,17 @@ document.addEventListener("DOMContentLoaded", function() {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
                 const img = entry.target;
-                const src = img.dataset.src;
+                const realSrc = img.dataset.src;
 
-                img.src = src;
-                img.addEventListener('load', () => {
-                    img.classList.remove("lazy");
-                });
+                // Start loading the real image
+                img.src = realSrc;
+
+                // Wait until the image finishes loading before showing it
+                img.addEventListener("load", () => {
+                    img.classList.add("loaded"); // fade-in trigger
+                    img.classList.remove("lazy"); // cleanup
+                }, { once: true });
+
                 obs.unobserve(img);
             }
         });
@@ -164,4 +169,5 @@ document.addEventListener("DOMContentLoaded", function() {
 
     lazyImages.forEach(img => observer.observe(img));
 });
+
 
