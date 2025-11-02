@@ -327,20 +327,18 @@ class ScrollController {
 /* ============================================================= */
 document.addEventListener('DOMContentLoaded', () => {
   const loader = new LazyLoader();
-  const speed = new ScrollSpeed(3000);        // 3000 px/s = fast fling
+  const speed = new ScrollSpeed(3000);
   const controller = new ScrollController(loader, speed, 180);
 
-  // Observe every lazy image on the page
-  document.querySelectorAll('img.lazy').forEach(img => loader.observe(img));
+  // THIS MUST RUN AFTER IMAGES EXIST
+  const lazyImages = document.querySelectorAll('img.lazy');
+  console.log(`Found ${lazyImages.length} lazy images on load`);
+  lazyImages.forEach(img => loader.observe(img));
 
-  // Start the speed detector and controller
   speed.start();
   controller.start();
+  controller.observeVisible();  // initial visible
 
-  // Load any images already in view on page load
-  controller.observeVisible();
-
-  // Optional: expose to console for debugging
   window._debugLazy = { loader, speed, controller };
 });
 
