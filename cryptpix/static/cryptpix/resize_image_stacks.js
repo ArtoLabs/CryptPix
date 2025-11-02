@@ -144,112 +144,59 @@ document.addEventListener('mousedown', function(event) {
 }, false);
 
 
-document.addEventListener('DOMContentLoaded', () => {
-  const images = document.querySelectorAll('img.lazy');
+document.addEventListener("DOMContentLoaded", () => {
+    const lazyImages = document.querySelectorAll("img.lazy");
 
-  // -----------------------------------------------------------------
-  // 1. IntersectionObserver – loads ONE image when it intersects
-  // -----------------------------------------------------------------
-  const io = new IntersectionObserver((entries, observer) => {
-    entries.forEach(entry => {
-      if (!entry.isIntersecting) return;
+    // === YOUR ORIGINAL WORKING LAZY LOADER (unchanged) ===
+    const observer = new IntersectionObserver((entries, obs) => {
+        entries.forEach(entry => {
+            if (!entry.isIntersecting) return;
 
-      const img = entry.target;
-      const src = img.dataset.src;
-      if (!src) return;
+            const img = entry.target;
+            const realSrc = img.dataset.src;
+            img.src = realSrc;
 
-      // start download
-      img.src = src;
+            const checkLoaded = () => {
+                if (img.complete && img.naturalWidth > 1) {
+                    console.log("REAL IMAGE DECODED — FADING IN");
+                    img.classList.add("loaded");
+                    obs.unobserve(img);
+                } else {
+                    requestAnimationFrame(checkLoaded);
+                }
+            };
 
-      // wait until the browser has decoded the image
-      const poll = () => {
-        if (img.complete && img.naturalWidth > 0) {
-          img.classList.add('loaded');
-          observer.unobserve(img);          // <-- stop watching this one
-        } else {
-          requestAnimationFrame(poll);
+            checkLoaded();
+            obs.unobserve(img);  // Note: this is in your original — we’ll fix later
+        });
+    });
+
+    lazyImages.forEach(img => observer.observe(img));
+
+    // === NEW: SCROLL SPEED DETECTION ONLY ===
+    let lastScrollY = window.scrollY;
+    let lastTime = performance.now();
+
+    const logScrollSpeed = () => {
+        const now = performance.now();
+        const scrollY = window.scrollY;
+        const timeDiff = now - lastTime;
+        const scrollDiff = Math.abs(scrollY - lastScrollY);
+
+        if (timeDiff > 0) {
+            const speed = scrollDiff / (timeDiff / 1000); // px per second
+            console.log(`Scroll speed: ${speed.toFixed(0)} px/s`);
         }
-      };
-      poll();
-    });
-  }, { rootMargin: '200px' });   // start a little early
 
-  // -----------------------------------------------------------------
-  // 2. Scroll-velocity detector
-  // -----------------------------------------------------------------
-  const THRESHOLD = 1000;       // px/s – fast fling
-  const SETTLE    = 200;        // ms after scroll stops
+        lastScrollY = scrollY;
+        lastTime = now;
 
-  let lastY   = window.scrollY;
-  let lastT   = performance.now();
-  let fast    = false;
-  let timer   = null;
+        requestAnimationFrame(logScrollSpeed);
+    };
 
-  const loop = () => {
-    const now = performance.now();
-    const y   = window.scrollY;
-    const dt  = now - lastT || 1;
-    const dy  = y - lastY;
-
-    const speed = Math.abs(dy) / (dt / 1000);
-    const wasFast = fast;
-    fast = speed > THRESHOLD;
-
-    lastY = y;
-    lastT = now;
-
-    // ---- pause while flinging ------------------------------------
-    if (fast && !io._paused) {
-      io._paused = true;
-      images.forEach(i => io.unobserve(i));
-    }
-
-    // ---- resume when we slow down --------------------------------
-    if (!fast && wasFast && io._paused) {
-      io._paused = false;
-      startObservingVisible();
-    }
-
-    // ---- debounce the final stop ---------------------------------
-    clearTimeout(timer);
-    timer = setTimeout(() => {
-      if (io._paused) {
-        io._paused = false;
-        startObservingVisible();
-      }
-    }, SETTLE);
-
-    requestAnimationFrame(loop);
-  };
-
-  // -----------------------------------------------------------------
-  // 3. Observe ONLY the images that are currently visible
-  // -----------------------------------------------------------------
-  function startObservingVisible() {
-    const vh   = window.innerHeight;
-    const top  = window.scrollY;
-    const bot  = top + vh;
-    const buf  = 300;
-
-    images.forEach(img => {
-      // skip already-loaded or already-started images
-      if (img.classList.contains('loaded') || img.src) return;
-
-      const rect = img.getBoundingClientRect();
-      const imgTop    = rect.top + window.scrollY;
-      const imgBottom = imgTop + rect.height;
-
-      if (imgBottom > top - buf && imgTop < bot + buf) {
-        io.observe(img);
-      }
-    });
-  }
-
-  // -----------------------------------------------------------------
-  // 4. Kick everything off
-  // -----------------------------------------------------------------
-  startObservingVisible();           // initial load of visible images
-  requestAnimationFrame(loop);       // start velocity loop
+    // Start the speed logger
+    requestAnimationFrame(logScrollSpeed);
+});
 
 
 
