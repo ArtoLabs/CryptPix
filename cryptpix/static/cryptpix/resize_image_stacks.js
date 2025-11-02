@@ -40,8 +40,6 @@ function resizeImageStacks() {
   }
 
   document.querySelectorAll('.image-stack').forEach(function(stack) {
-    console.log('Processing image-stack:', stack);
-
     const tileMeta = stack.querySelector('.tile-meta');
     if (!tileMeta) {
       console.warn('No tile-meta found in image-stack:', stack);
@@ -106,7 +104,6 @@ function resizeImageStacks() {
         }
       }
     }
-    console.log('Target dimensions:', { targetWidth, targetHeight });
 
     // Quantize dimensions to the nearest tile size multiple
     const scaledWidth = Math.round(targetWidth / tileSize) * tileSize;
@@ -276,24 +273,53 @@ class ScrollController {
     this.observeVisible();
   }
 
-  observeVisible() {
-    const vh = window.innerHeight;
-    const top = window.scrollY;
-    const bot = top + vh;
-    const buf = 300;
+    observeVisible() {
+      console.log('%c=== observeVisible() CALLED ===', 'color: orange; font-weight: bold');
+      const vh = window.innerHeight;
+      const top = window.scrollY;
+      const bot = top + vh;
+      const buf = 300;
 
-    document.querySelectorAll('img.lazy').forEach(img => {
-      if (img.classList.contains('loaded') || img.src) return;
+      const candidates = [];
+      let observedCount = 0;
 
-      const rect = img.getBoundingClientRect();
-      const imgTop = rect.top + window.scrollY;
-      const imgBottom = imgTop + rect.height;
+      document.querySelectorAll('img.lazy').forEach(img => {
+        if (img.classList.contains('loaded') || img.src) return;
 
-      if (imgBottom > top - buf && imgTop < bot + buf) {
-        this.loader.observe(img);
+        const rect = img.getBoundingClientRect();
+        const imgTop = rect.top + window.scrollY;
+        const imgBottom = imgTop + rect.height;
+
+        const isVisible = imgBottom > top - buf && imgTop < bot + buf;
+
+        candidates.push({
+          img,
+          isVisible,
+          top: imgTop,
+          bottom: imgBottom,
+          viewport: { top, bot }
+        });
+
+        if (isVisible) {
+          this.loader.observe(img);
+          observedCount++;
+        }
+      });
+
+      console.log(`Found ${candidates.length} placeholder images`);
+      console.log(`→ ${observedCount} are visible → calling loader.observe()`);
+      console.table(candidates.map(c => ({
+        visible: c.isVisible ? 'YES' : 'no',
+        imgTop: c.top.toFixed(0),
+        imgBot: c.bottom.toFixed(0),
+        vpTop: c.viewport.top.toFixed(0),
+        vpBot: c.viewport.bot.toFixed(0)
+      })));
+
+      if (observedCount === 0 && candidates.length > 0) {
+        console.warn('NO images observed — but placeholders exist!');
       }
-    });
-  }
+    }
 }
 
 /* ============================================================= */
