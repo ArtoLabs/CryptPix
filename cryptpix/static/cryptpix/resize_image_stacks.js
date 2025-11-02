@@ -144,58 +144,178 @@ document.addEventListener('mousedown', function(event) {
 }, false);
 
 
-document.addEventListener("DOMContentLoaded", () => {
-    const lazyImages = document.querySelectorAll("img.lazy");
+/* ============================================================= */
+/* 1. LAZY LOADER – fixed, reliable, never unobserves too early */
+/* ============================================================= */
+class LazyLoader {
+  constructor() {
+    this.observer = new IntersectionObserver(
+      this.handleIntersect.bind(this),
+      { rootMargin: '200px' }   // start loading a little early
+    );
+    this.tracked = new Set();   // all images we are watching
+  }
 
-    // === YOUR ORIGINAL WORKING LAZY LOADER (unchanged) ===
-    const observer = new IntersectionObserver((entries, obs) => {
-        entries.forEach(entry => {
-            if (!entry.isIntersecting) return;
+  observe(img) {
+    if (!img.dataset.src || this.tracked.has(img)) return;
+    this.tracked.add(img);
+    this.observer.observe(img);
+  }
 
-            const img = entry.target;
-            const realSrc = img.dataset.src;
-            img.src = realSrc;
+  unobserve(img) {
+    this.tracked.delete(img);
+    this.observer.unobserve(img);
+  }
 
-            const checkLoaded = () => {
-                if (img.complete && img.naturalWidth > 1) {
-                    console.log("REAL IMAGE DECODED — FADING IN");
-                    img.classList.add("loaded");
-                    obs.unobserve(img);
-                } else {
-                    requestAnimationFrame(checkLoaded);
-                }
-            };
+  unobserveAll() {
+    this.tracked.forEach(img => this.observer.unobserve(img));
+  }
 
-            checkLoaded();
-            obs.unobserve(img);  // Note: this is in your original — we’ll fix later
-        });
+  handleIntersect(entries) {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      this.loadImage(entry.target);
     });
+  }
 
-    lazyImages.forEach(img => observer.observe(img));
+  loadImage(img) {
+    const src = img.dataset.src;
+    img.src = src;                     // start download
 
-    // === NEW: SCROLL SPEED DETECTION ONLY ===
-    let lastScrollY = window.scrollY;
-    let lastTime = performance.now();
-
-    const logScrollSpeed = () => {
-        const now = performance.now();
-        const scrollY = window.scrollY;
-        const timeDiff = now - lastTime;
-        const scrollDiff = Math.abs(scrollY - lastScrollY);
-
-        if (timeDiff > 0) {
-            const speed = scrollDiff / (timeDiff / 1000); // px per second
-            console.log(`Scroll speed: ${speed.toFixed(0)} px/s`);
-        }
-
-        lastScrollY = scrollY;
-        lastTime = now;
-
-        requestAnimationFrame(logScrollSpeed);
+    const poll = () => {
+      if (img.complete && img.naturalWidth > 0) {
+        img.classList.add('loaded');
+        this.unobserve(img);         // only now — after decode
+      } else {
+        requestAnimationFrame(poll);
+      }
     };
+    poll();
+  }
+}
 
-    // Start the speed logger
-    requestAnimationFrame(logScrollSpeed);
+/* ============================================================= */
+/* 2. SCROLL SPEED – measures px/s, emits fast/slow events     */
+/* ============================================================= */
+class ScrollSpeed {
+  constructor(threshold = 3000) {
+    this.threshold = threshold;
+    this.lastY = window.scrollY;
+    this.lastT = performance.now();
+    this.isFast = false;
+    this.callbacks = [];
+  }
+
+  start() {
+    this.loop();
+  }
+
+  on(event, cb) {
+    this.callbacks.push({ event, cb });
+  }
+
+  emit(event, data) {
+    this.callbacks.forEach(c => c.event === event && c.cb(data));
+  }
+
+  loop = () => {
+    const now = performance.now();
+    const y = window.scrollY;
+    const dt = now - this.lastT || 1;
+    const dy = Math.abs(y - this.lastY);
+    const speed = dy / (dt / 1000);
+
+    const wasFast = this.isFast;
+    this.isFast = speed > this.threshold;
+
+    if (!wasFast && this.isFast) this.emit('fast');
+    if (wasFast && !this.isFast) this.emit('slow');
+
+    this.lastY = y;
+    this.lastT = now;
+    requestAnimationFrame(this.loop);
+  };
+}
+
+/* ============================================================= */
+/* 3. SCROLL CONTROLLER – pauses/resumes loader on fling       */
+/* ============================================================= */
+class ScrollController {
+  constructor(loader, speed, settleMs = 180) {
+    this.loader = loader;
+    this.speed = speed;
+    this.settleMs = settleMs;
+    this.settleTimer = null;
+    this.paused = false;
+  }
+
+  start() {
+    this.speed.on('fast', () => this.pause());
+    this.speed.on('slow', () => this.scheduleResume());
+  }
+
+  pause() {
+    if (this.paused) return;
+    this.paused = true;
+    this.loader.unobserveAll();
+    clearTimeout(this.settleTimer);
+    console.log('PAUSED lazy loading (fast scroll)');
+  }
+
+  scheduleResume() {
+    clearTimeout(this.settleTimer);
+    this.settleTimer = setTimeout(() => {
+      this.resume();
+    }, this.settleMs);
+  }
+
+  resume() {
+    if (!this.paused) return;
+    this.paused = false;
+    console.log('RESUMED – loading visible images');
+    this.observeVisible();
+  }
+
+  observeVisible() {
+    const vh = window.innerHeight;
+    const top = window.scrollY;
+    const bot = top + vh;
+    const buf = 300;
+
+    document.querySelectorAll('img.lazy').forEach(img => {
+      if (img.classList.contains('loaded') || img.src) return;
+
+      const rect = img.getBoundingClientRect();
+      const imgTop = rect.top + window.scrollY;
+      const imgBottom = imgTop + rect.height;
+
+      if (imgBottom > top - buf && imgTop < bot + buf) {
+        this.loader.observe(img);
+      }
+    });
+  }
+}
+
+/* ============================================================= */
+/* 4. BOOTSTRAP – wire everything together                     */
+/* ============================================================= */
+document.addEventListener('DOMContentLoaded', () => {
+  const loader = new LazyLoader();
+  const speed = new ScrollSpeed(3000);        // 3000 px/s = fast fling
+  const controller = new ScrollController(loader, speed, 180);
+
+  // Observe every lazy image on the page
+  document.querySelectorAll('img.lazy').forEach(img => loader.observe(img));
+
+  // Start the speed detector and controller
+  speed.start();
+  controller.start();
+
+  // Load any images already in view on page load
+  controller.observeVisible();
+
+  // Optional: expose to console for debugging
+  window._debugLazy = { loader, speed, controller };
 });
 
 
