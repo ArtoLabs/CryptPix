@@ -144,134 +144,112 @@ document.addEventListener('mousedown', function(event) {
 }, false);
 
 
-document.addEventListener("DOMContentLoaded", () => {
-    const lazyImages = document.querySelectorAll("img.lazy");
+document.addEventListener('DOMContentLoaded', () => {
+  const images = document.querySelectorAll('img.lazy');
 
-    // -----------------------------------------------------------------
-    // 1. IntersectionObserver – loads an image when it intersects
-    // -----------------------------------------------------------------
-    const io = new IntersectionObserver((entries, obs) => {
-        entries.forEach(entry => {
-            if (!entry.isIntersecting) return;
+  // -----------------------------------------------------------------
+  // 1. IntersectionObserver – loads ONE image when it intersects
+  // -----------------------------------------------------------------
+  const io = new IntersectionObserver((entries, observer) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
 
-            const img = entry.target;
-            const realSrc = img.dataset.src;
-            if (!realSrc) return;
+      const img = entry.target;
+      const src = img.dataset.src;
+      if (!src) return;
 
-            // ---- swap src ------------------------------------------------
-            img.src = realSrc;               // <-- triggers download
-            img.classList.remove("lazy");    // optional: clean up class
+      // start download
+      img.src = src;
 
-            // ---- poll until decoded --------------------------------------
-            const check = () => {
-                if (img.complete && img.naturalWidth > 1) {
-                    img.classList.add("loaded");
-                    obs.unobserve(img);      // stop watching this one
-                } else {
-                    requestAnimationFrame(check);
-                }
-            };
-            check();
-
-            // NOTE: we *unobserve* **after** the image is decoded,
-            //       not immediately. This was the main bug in the first
-            //       version – the observer was removed before the image
-            //       even started loading.
-        });
-    }, {
-        rootMargin: "150px"   // start a little early
+      // wait until the browser has decoded the image
+      const poll = () => {
+        if (img.complete && img.naturalWidth > 0) {
+          img.classList.add('loaded');
+          observer.unobserve(img);          // <-- stop watching this one
+        } else {
+          requestAnimationFrame(poll);
+        }
+      };
+      poll();
     });
+  }, { rootMargin: '200px' });   // start a little early
 
-    // -----------------------------------------------------------------
-    // 2. Scroll-velocity + debounce logic
-    // -----------------------------------------------------------------
-    const VELOCITY_THRESHOLD = 900;   // px/s – tune as needed
-    const SETTLE_DELAY       = 180;   // ms after scroll stops
+  // -----------------------------------------------------------------
+  // 2. Scroll-velocity detector
+  // -----------------------------------------------------------------
+  const THRESHOLD = 1000;       // px/s – fast fling
+  const SETTLE    = 200;        // ms after scroll stops
 
-    let lastY    = window.scrollY;
-    let lastT    = performance.now();
-    let fast     = false;
-    let timer    = null;
+  let lastY   = window.scrollY;
+  let lastT   = performance.now();
+  let fast    = false;
+  let timer   = null;
 
-    const velocityLoop = () => {
-        const now = performance.now();
-        const y   = window.scrollY;
-        const dt  = now - lastT || 1;
-        const dy  = y - lastY;
+  const loop = () => {
+    const now = performance.now();
+    const y   = window.scrollY;
+    const dt  = now - lastT || 1;
+    const dy  = y - lastY;
 
-        const speed = Math.abs(dy) / (dt / 1000);   // px/s
-        fast = speed > VELOCITY_THRESHOLD;
+    const speed = Math.abs(dy) / (dt / 1000);
+    const wasFast = fast;
+    fast = speed > THRESHOLD;
 
-        lastY = y;
-        lastT = now;
+    lastY = y;
+    lastT = now;
 
-        // ---- pause while flinging ------------------------------------
-        if (fast && !io._paused) pauseObserver();
-
-        // ---- resume on normal scroll ---------------------------------
-        if (!fast && io._paused) resumeObserver();
-
-        // ---- debounce the *end* of any scroll ------------------------
-        clearTimeout(timer);
-        timer = setTimeout(() => {
-            if (io._paused) resumeObserver();
-            reobserveVisible();          // load only what’s on screen now
-        }, SETTLE_DELAY);
-
-        requestAnimationFrame(velocityLoop);
-    };
-
-    // -----------------------------------------------------------------
-    // 3. Pause / resume helpers
-    // -----------------------------------------------------------------
-    function pauseObserver() {
-        io._paused = true;
-        lazyImages.forEach(img => io.unobserve(img));
+    // ---- pause while flinging ------------------------------------
+    if (fast && !io._paused) {
+      io._paused = true;
+      images.forEach(i => io.unobserve(i));
     }
 
-    function resumeObserver() {
+    // ---- resume when we slow down --------------------------------
+    if (!fast && wasFast && io._paused) {
+      io._paused = false;
+      startObservingVisible();
+    }
+
+    // ---- debounce the final stop ---------------------------------
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      if (io._paused) {
         io._paused = false;
-        lazyImages.forEach(img => {
-            // Observe only images that are *still* placeholders
-            if (!img.classList.contains("loaded") && !img.src) {
-                io.observe(img);
-            }
-        });
-    }
+        startObservingVisible();
+      }
+    }, SETTLE);
 
-    // -----------------------------------------------------------------
-    // 4. Re-observe only the images that are currently visible
-    // -----------------------------------------------------------------
-    function reobserveVisible() {
-        const vh   = window.innerHeight;
-        const top  = window.scrollY;
-        const bot  = top + vh;
-        const buf  = 250;                     // extra buffer
+    requestAnimationFrame(loop);
+  };
 
-        lazyImages.forEach(img => {
-            if (img.classList.contains("loaded") || img.src) return;
+  // -----------------------------------------------------------------
+  // 3. Observe ONLY the images that are currently visible
+  // -----------------------------------------------------------------
+  function startObservingVisible() {
+    const vh   = window.innerHeight;
+    const top  = window.scrollY;
+    const bot  = top + vh;
+    const buf  = 300;
 
-            const rect = img.getBoundingClientRect();
-            const imgTop    = rect.top + window.scrollY;
-            const imgBottom = imgTop + rect.height;
+    images.forEach(img => {
+      // skip already-loaded or already-started images
+      if (img.classList.contains('loaded') || img.src) return;
 
-            if (imgBottom > top - buf && imgTop < bot + buf) {
-                io.observe(img);
-            }
-        });
-    }
+      const rect = img.getBoundingClientRect();
+      const imgTop    = rect.top + window.scrollY;
+      const imgBottom = imgTop + rect.height;
 
-    // -----------------------------------------------------------------
-    // 5. Kick-off
-    // -----------------------------------------------------------------
-    resumeObserver();            // start observing everything
-    requestAnimationFrame(velocityLoop);
+      if (imgBottom > top - buf && imgTop < bot + buf) {
+        io.observe(img);
+      }
+    });
+  }
 
-    // -----------------------------------------------------------------
-    // OPTIONAL: handle images added later (e.g. via AJAX)
-    // -----------------------------------------------------------------
-    // const mo = new MutationObserver(muts => { … });
-});
+  // -----------------------------------------------------------------
+  // 4. Kick everything off
+  // -----------------------------------------------------------------
+  startObservingVisible();           // initial load of visible images
+  requestAnimationFrame(loop);       // start velocity loop
 
 
 
