@@ -143,6 +143,7 @@ document.addEventListener('mousedown', function(event) {
   }
 }, false);
 
+
 document.addEventListener("DOMContentLoaded", () => {
     const lazyImages = document.querySelectorAll("img.lazy");
 
@@ -152,24 +153,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const img = entry.target;
 
-            // ---- If the image is already cached, onload fires synchronously ----
-            const finish = () => {
-                img.classList.remove("lazy");
-                img.classList.add("loaded");
-                img.removeEventListener("load", finish);
+            // ---- When the *real* image finishes loading ----
+            const onRealImageLoad = () => {
+                img.classList.remove("lazy");   // optional cleanup
+                img.classList.add("loaded");    // <-- triggers fade-in
+                img.removeEventListener("load", onRealImageLoad);
             };
 
-            img.addEventListener("load", finish);
+            img.addEventListener("load", onRealImageLoad);
 
-            // ---- Start the real download ----
+            // ---- Start downloading the real image ----
             img.src = img.dataset.src;
 
-            // ---- Stop observing ----
+            // ---- Stop observing this image ----
             obs.unobserve(img);
         });
     });
 
     lazyImages.forEach(img => observer.observe(img));
 });
+
 
 
