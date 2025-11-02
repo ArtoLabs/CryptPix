@@ -169,7 +169,6 @@ class LazyLoader {
 
   unobserveAll() {
     this.tracked.forEach(img => this.observer.unobserve(img));
-    //this.tracked.clear();
   }
 
   // CRITICAL: Forces observer to re-check all entries
@@ -272,7 +271,6 @@ class ScrollController {
     this.paused = true;
     this.loader.unobserveAll();
     clearTimeout(this.settleTimer);
-    console.log('PAUSED lazy loading (fast scroll)');
   }
 
   scheduleResume() {
@@ -285,7 +283,6 @@ class ScrollController {
   resume() {
     if (!this.paused) return;
     this.paused = false;
-    console.log('RESUMED – loading visible images');
     this.observeVisible();
     this.loader.reconnect();  // Forces IntersectionObserver to re-check
   }
@@ -315,7 +312,7 @@ class ScrollController {
         }
       });
 
-      console.log(`→ Re-observed ${observed} visible images (total tracked: ${this.loader.tracked.size})`);
+      //console.log(`→ Re-observed ${observed} visible images (total tracked: ${this.loader.tracked.size})`);
     }
 }
 
