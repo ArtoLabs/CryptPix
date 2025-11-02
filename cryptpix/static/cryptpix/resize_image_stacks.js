@@ -169,20 +169,20 @@ class LazyLoader {
 
   unobserveAll() {
     this.tracked.forEach(img => this.observer.unobserve(img));
-    this.tracked.clear();
+    //this.tracked.clear();
   }
 
   // CRITICAL: Forces observer to re-check all entries
-  reconnect() {
-    this.observer.disconnect();
-    setTimeout(() => {
-      this.tracked.forEach(img => {
-        if (!img.classList.contains('loaded')) {
-          this.observer.observe(img);
-        }
-      });
-    }, 0);
-  }
+    reconnect() {
+      this.observer.disconnect();
+      setTimeout(() => {
+        this.tracked.forEach(img => {
+          if (!img.classList.contains('loaded')) {
+            this.observer.observe(img);  // observe ALL
+          }
+        });
+      }, 0);
+    }
 
   handleIntersect(entries) {
     entries.forEach(entry => {
@@ -290,31 +290,33 @@ class ScrollController {
     this.loader.reconnect();  // Forces IntersectionObserver to re-check
   }
 
-  observeVisible() {
-    const vh = window.innerHeight;
-    const top = window.scrollY;
-    const bot = top + vh;
-    const buf = 300;
+    observeVisible() {
+      const vh = window.innerHeight;
+      const top = window.scrollY;
+      const bot = top + vh;
+      const buf = 300;
 
-    let observed = 0;
-    document.querySelectorAll('img.lazy').forEach(img => {
-      if (img.classList.contains('loaded')) return;
+      let observed = 0;
+      document.querySelectorAll('img.lazy').forEach(img => {
+        if (img.classList.contains('loaded')) return;
 
-      const rect = img.getBoundingClientRect();
-      const imgTop = rect.top + window.scrollY;
-      const imgBottom = imgTop + rect.height;
-
-      if (imgBottom > top - buf && imgTop < bot + buf) {
+        // ADD TO TRACKED (even if not visible)
         if (!this.loader.tracked.has(img)) {
           this.loader.tracked.add(img);
         }
-        this.loader.observer.observe(img);
-        observed++;
-      }
-    });
 
-    console.log(`→ Re-observed ${observed} visible images`);
-  }
+        const rect = img.getBoundingClientRect();
+        const imgTop = rect.top + window.scrollY;
+        const imgBottom = imgTop + rect.height;
+
+        if (imgBottom > top - buf && imgTop < bot + buf) {
+          this.loader.observer.observe(img);
+          observed++;
+        }
+      });
+
+      console.log(`→ Re-observed ${observed} visible images (total tracked: ${this.loader.tracked.size})`);
+    }
 }
 
 /* ============================================================= */
