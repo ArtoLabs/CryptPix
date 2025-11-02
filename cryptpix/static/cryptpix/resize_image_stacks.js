@@ -147,33 +147,130 @@ document.addEventListener('mousedown', function(event) {
 document.addEventListener("DOMContentLoaded", () => {
     const lazyImages = document.querySelectorAll("img.lazy");
 
-    const observer = new IntersectionObserver((entries, obs) => {
+    // -----------------------------------------------------------------
+    // 1. IntersectionObserver – loads an image when it intersects
+    // -----------------------------------------------------------------
+    const io = new IntersectionObserver((entries, obs) => {
         entries.forEach(entry => {
             if (!entry.isIntersecting) return;
 
             const img = entry.target;
-
-            // Swap in the real src
             const realSrc = img.dataset.src;
-            img.src = realSrc;
+            if (!realSrc) return;
 
-            // Poll until the real image is decoded
-            const checkLoaded = () => {
-                if (img.complete && img.naturalWidth > 1) {  // >1 = not 1x1 placeholder
-                    console.log("REAL IMAGE DECODED — FADING IN");
+            // ---- swap src ------------------------------------------------
+            img.src = realSrc;               // <-- triggers download
+            img.classList.remove("lazy");    // optional: clean up class
+
+            // ---- poll until decoded --------------------------------------
+            const check = () => {
+                if (img.complete && img.naturalWidth > 1) {
                     img.classList.add("loaded");
-                    obs.unobserve(img);
+                    obs.unobserve(img);      // stop watching this one
                 } else {
-                    requestAnimationFrame(checkLoaded);
+                    requestAnimationFrame(check);
                 }
             };
+            check();
 
-            checkLoaded();
-            obs.unobserve(img);
+            // NOTE: we *unobserve* **after** the image is decoded,
+            //       not immediately. This was the main bug in the first
+            //       version – the observer was removed before the image
+            //       even started loading.
         });
+    }, {
+        rootMargin: "150px"   // start a little early
     });
 
-    lazyImages.forEach(img => observer.observe(img));
+    // -----------------------------------------------------------------
+    // 2. Scroll-velocity + debounce logic
+    // -----------------------------------------------------------------
+    const VELOCITY_THRESHOLD = 900;   // px/s – tune as needed
+    const SETTLE_DELAY       = 180;   // ms after scroll stops
+
+    let lastY    = window.scrollY;
+    let lastT    = performance.now();
+    let fast     = false;
+    let timer    = null;
+
+    const velocityLoop = () => {
+        const now = performance.now();
+        const y   = window.scrollY;
+        const dt  = now - lastT || 1;
+        const dy  = y - lastY;
+
+        const speed = Math.abs(dy) / (dt / 1000);   // px/s
+        fast = speed > VELOCITY_THRESHOLD;
+
+        lastY = y;
+        lastT = now;
+
+        // ---- pause while flinging ------------------------------------
+        if (fast && !io._paused) pauseObserver();
+
+        // ---- resume on normal scroll ---------------------------------
+        if (!fast && io._paused) resumeObserver();
+
+        // ---- debounce the *end* of any scroll ------------------------
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+            if (io._paused) resumeObserver();
+            reobserveVisible();          // load only what’s on screen now
+        }, SETTLE_DELAY);
+
+        requestAnimationFrame(velocityLoop);
+    };
+
+    // -----------------------------------------------------------------
+    // 3. Pause / resume helpers
+    // -----------------------------------------------------------------
+    function pauseObserver() {
+        io._paused = true;
+        lazyImages.forEach(img => io.unobserve(img));
+    }
+
+    function resumeObserver() {
+        io._paused = false;
+        lazyImages.forEach(img => {
+            // Observe only images that are *still* placeholders
+            if (!img.classList.contains("loaded") && !img.src) {
+                io.observe(img);
+            }
+        });
+    }
+
+    // -----------------------------------------------------------------
+    // 4. Re-observe only the images that are currently visible
+    // -----------------------------------------------------------------
+    function reobserveVisible() {
+        const vh   = window.innerHeight;
+        const top  = window.scrollY;
+        const bot  = top + vh;
+        const buf  = 250;                     // extra buffer
+
+        lazyImages.forEach(img => {
+            if (img.classList.contains("loaded") || img.src) return;
+
+            const rect = img.getBoundingClientRect();
+            const imgTop    = rect.top + window.scrollY;
+            const imgBottom = imgTop + rect.height;
+
+            if (imgBottom > top - buf && imgTop < bot + buf) {
+                io.observe(img);
+            }
+        });
+    }
+
+    // -----------------------------------------------------------------
+    // 5. Kick-off
+    // -----------------------------------------------------------------
+    resumeObserver();            // start observing everything
+    requestAnimationFrame(velocityLoop);
+
+    // -----------------------------------------------------------------
+    // OPTIONAL: handle images added later (e.g. via AJAX)
+    // -----------------------------------------------------------------
+    // const mo = new MutationObserver(muts => { … });
 });
 
 
