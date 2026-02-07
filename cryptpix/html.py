@@ -1,80 +1,120 @@
-from django.utils.html import format_html
+from django.utils.html import escape, format_html
+from django.utils.safestring import mark_safe
+from django.urls import reverse
 
+from .utils import sign_image_token
 
-def render_image_stack(
-    image1_url,
-    image2_url,
-    width,
-    height,
-    tile_size,
-    hue_rotation,
-    invert_colors=False,
-):
-    """
-    Render two checkerboard image layers stacked correctly,
-    with filtering applied at the container level and
-    pixel-perfect alignment preserved.
-    """
-
-    filter_parts = []
-    if invert_colors:
-        filter_parts.append("invert(1)")
-    if hue_rotation:
-        filter_parts.append(f"hue-rotate({-hue_rotation}deg)")
-
-    filter_style = " ".join(filter_parts)
-
-    return format_html(
-        """
-        <div class="image-stack"
-             style="
-                --img-width:{width};
-                --img-height:{height};
-                aspect-ratio:{width}/{height};
-                filter:{filter};
-             ">
-            <img src="{img1}" alt="" />
-            <img src="{img2}" alt="" />
-
-            <div class="image-meta"
-                 data-tile-size="{tile}"
-                 data-width="{width}"
-                 data-height="{height}">
-            </div>
-        </div>
-        """,
-        img1=image1_url,
-        img2=image2_url,
-        width=width,
-        height=height,
-        tile=tile_size,
-        filter=filter_style,
-    )
+import json
 
 
 def get_css():
     return """
-    .image-stack {
-        position: relative;
-        display: inline-block;
-        width: 100%;
-        overflow: hidden;
-        image-rendering: auto;
-    }
+<style>
+  .image-stack {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    display: inline-block;
+    overflow: hidden;
+    image-rendering: auto;
+    background-color: rgba(0, 0, 0, 0);
+    z-index: 10;
+  }
 
-    .image-stack img {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: fill;
-        image-rendering: auto;
-        display: block;
-        pointer-events: none;
-        user-select: none;
-    }
+  .image-stack img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+    image-rendering: auto;
+    display: block;
+    pointer-events: none;
+    user-select: none;
+  }
 
-    .image-meta {
-        display: none;
-    }
+  /* 1. Start invisible + optional subtle blur */
+  img.lazy {
+      opacity: 0;
+      transition: opacity 1.2s ease-out;
+      transform: translateZ(0);
+  }
+
+  img.lazy.loaded {
+      opacity: 1;
+  }
+</style>
+"""
+
+
+def get_secure_image_url(image_id, request):
+    # Ensure session key exists
+    if not request.session.session_key:
+        request.session.create()
+    token = sign_image_token(image_id, request.session.session_key)
+    url = reverse('secure-image', args=[token])
+    return url
+
+
+def add_lazy_class(attrs: str) -> str:
     """
+    Ensure that the 'lazy' class is added to the class attribute in attrs.
+    If no class attribute exists, add one.
+    """
+    import re
+
+    class_match = re.search(r'class=["\'](.*?)["\']', attrs)
+    if class_match:
+        classes = class_match.group(1).split()
+        if 'lazy' not in classes:
+            classes.append('lazy')
+        attrs = re.sub(r'class=["\'](.*?)["\']', f'class="{" ".join(classes)}"', attrs)
+    else:
+        attrs = f'class="lazy" {attrs}'.strip()
+
+    return attrs
+
+
+def render_image_stack(
+    image_id,
+    request,
+    tile_size,
+    width,
+    height,
+    hue_rotation,
+    top_img_attrs="",
+    width_attr=None,
+    height_attr=None,
+    breakpoints=None,
+    parent_size=None
+):
+    breakpoints_json = json.dumps(breakpoints or [])
+    top_img_attrs = add_lazy_class(top_img_attrs)
+
+    # Construct meta attributes with single quotes
+    meta_attrs = [
+        f"data-tile-size='{tile_size}'",
+        f"data-breakpoints='{breakpoints_json}'"
+    ]
+    if width_attr is not None:
+        meta_attrs.append(f"data-width='{width_attr}'")
+    if height_attr is not None:
+        meta_attrs.append(f"data-height='{height_attr}'")
+    if parent_size is not None:
+        meta_attrs.append(f"data-parent-size='{parent_size}'")
+
+    # Build the HTML as a plain string
+    image_id_1 = str(image_id) + '_1'
+    image_id_2 = str(image_id) + '_2'
+
+    # Apply the filter ONCE at the container level (after compositing)
+    container_filter = f"invert(100%) hue-rotate(-{hue_rotation}deg);"
+
+    html = f"""
+<div class="image-stack" style="filter: {container_filter}">
+  <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" data-src="{escape(get_secure_image_url(image_id_1, request))}" loading="lazy" class="lazy">
+  <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" data-src="{escape(get_secure_image_url(image_id_2, request))}" loading="lazy" {top_img_attrs} data-natural-width={width} data-natural-height={height}>
+  <div class="tile-meta" {" ".join(meta_attrs)} hidden></div>
+</div>
+"""
+    return mark_safe(html)
