@@ -120,8 +120,8 @@ def process_and_split_image(image):
                         pixels2[px, py] = pixel
 
     # NEW: seam-prevention bleed
-    layer1 = apply_bleed(layer1, bleed=1)
-    layer2 = apply_bleed(layer2, bleed=1)
+    # layer1 = apply_bleed(layer1, bleed=1)
+    # layer2 = apply_bleed(layer2, bleed=1)
 
     cropped_buffer = BytesIO()
     buffer1 = BytesIO()
