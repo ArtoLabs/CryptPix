@@ -1,11 +1,9 @@
 from django import template
-from django.template.base import TokenType
-from django.utils.html import format_html_join
-from cryptpix.html import get_css, render_image_stack
-from django.utils.safestring import mark_safe
 from django.utils.html import escape
-
+from django.utils.safestring import mark_safe
 import json
+
+from cryptpix.html import get_css, render_image_stack
 
 register = template.Library()
 
@@ -31,9 +29,7 @@ def cryptpix_image(parser, token):
     attrs = {}
     for bit in raw_attrs:
         if "=" not in bit:
-            raise template.TemplateSyntaxError(
-                f"Malformed attribute assignment: {bit}"
-            )
+            raise template.TemplateSyntaxError(f"Malformed attribute assignment: {bit}")
         key, val = bit.split("=", 1)
         attrs[key] = parser.compile_filter(val)
 
@@ -46,49 +42,80 @@ class CryptPixImageNode(template.Node):
         self.attrs = attrs
 
     def render(self, context):
+        request = context.get("request")
 
-        request = context.get('request')
         try:
             photo = self.photo_var.resolve(context)
-            # url1 = getattr(photo, "image_layer_1").url
-            # url2 = getattr(photo, "image_layer_2").url
+
             image_id = getattr(photo, "pk", None)
             tile_size = getattr(photo, "tile_size", None)
             width = getattr(photo, "image_width", None)
             height = getattr(photo, "image_height", None)
             hue_rotation = getattr(photo, "hue_rotation", None)
 
-            # Allow override via tag attributes
-            width_attr = self.attrs.get('width')
-            height_attr = self.attrs.get('height')
-            breakpoints = self.attrs.get('breakpoints')
-            parent_size = self.attrs.get('data-parent-size')  # New attribute for data-parent-size
+            # Tag overrides / options
+            width_attr = self.attrs.get("width")
+            height_attr = self.attrs.get("height")
+            breakpoints = self.attrs.get("breakpoints")
+
+            # Back-compat: consumers use data-parent-size="true"
+            parent_size = (
+                self.attrs.get("data-parent-size")
+                or self.attrs.get("parent-size")
+                or self.attrs.get("parent_size")
+            )
 
             if width_attr:
                 width_attr = width_attr.resolve(context)
             if height_attr:
                 height_attr = height_attr.resolve(context)
+
             if breakpoints:
-                breakpoints = json.loads(breakpoints.resolve(context))
+                raw = breakpoints.resolve(context)
+                # Allow either a JSON string or a real Python list/dict
+                if isinstance(raw, (list, dict)):
+                    breakpoints = raw
+                else:
+                    breakpoints = json.loads(raw)
+
             if parent_size:
                 parent_size = parent_size.resolve(context)
 
         except template.VariableDoesNotExist:
             return "<!-- CryptPix Error: Photo variable does not exist in context -->"
         except Exception as e:
-            return f"<!-- CryptPix Error: {str(e)} -->"
+            return f"<!-- CryptPix Error: {escape(str(e))} -->"
 
-        top_img_attrs = []
+        # Attributes passed to the old "top <img>" now apply to the container.
+        # IMPORTANT: do NOT forward sizing-control attributes here, or they will conflict.
+        excluded = {
+            "width",
+            "height",
+            "breakpoints",
+            "data-parent-size",
+            "parent-size",
+            "parent_size",
+        }
+
+        container_attrs = []
         for key, val in self.attrs.items():
-            if key not in ['width', 'height', 'breakpoints', 'data-parent-size']:  # Exclude parent-size
-                resolved_val = val.resolve(context)
-                top_img_attrs.append(f'{key}="{escape(resolved_val)}"')
+            if key in excluded:
+                continue
+            resolved_val = val.resolve(context)
+            container_attrs.append(f'{key}="{escape(resolved_val)}"')
 
-        top_img_attrs_str = " ".join(top_img_attrs)
+        container_attrs_str = " ".join(container_attrs)
 
         return render_image_stack(
-            image_id, request, tile_size, width, height, hue_rotation,
-            top_img_attrs=mark_safe(top_img_attrs_str),
-            width_attr=width_attr, height_attr=height_attr,
-            breakpoints=breakpoints, parent_size=parent_size
+            image_id,
+            request,
+            tile_size,
+            width,
+            height,
+            hue_rotation,
+            top_img_attrs=mark_safe(container_attrs_str),
+            width_attr=width_attr,
+            height_attr=height_attr,
+            breakpoints=breakpoints,
+            parent_size=parent_size,
         )

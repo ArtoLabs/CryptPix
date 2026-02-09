@@ -1,291 +1,356 @@
+/* ============================================================= */
+/* CryptPix: resize_image_stacks.js                               */
+/* Updated for: single-element background-layer rendering         */
+/* ============================================================= */
 
+(function () {
+  let _resizeScheduled = false;
 
-function resizeImageStacks() {
+  function scheduleResize() {
+    if (_resizeScheduled) return;
+    _resizeScheduled = true;
+    requestAnimationFrame(() => {
+      _resizeScheduled = false;
+      resizeImageStacks();
+    });
+  }
+
+  function snapToDevicePixels(cssPx) {
+    const dpr = window.devicePixelRatio || 1;
+    return Math.round(cssPx * dpr) / dpr;
+  }
 
   // Helper function to parse dimension (pixels or percentage)
   function parseDimension(value, baseDimension, isParentSize, parentDimension) {
-    if (!value || typeof value !== 'string') {
-      console.log('Invalid or missing value, using baseDimension:', baseDimension);
-      return baseDimension;
-    }
+    if (!value || typeof value !== "string") return baseDimension;
+
     const trimmedValue = value.trim();
-    if (trimmedValue.endsWith('%') && isParentSize) {
-      if (parentDimension === 0) {
-        console.warn('Parent dimension is 0; falling back to base dimension:', baseDimension);
-        return baseDimension;
-      }
-      const percentage = parseFloat(trimmedValue) / 100;
-      if (isNaN(percentage)) {
-        console.warn('Invalid percentage value:', trimmedValue);
-        return baseDimension;
-      }
-      const result = Math.round(parentDimension * percentage);
-      return result;
+
+    // Percent relative to parent container (only when explicitly enabled)
+    if (trimmedValue.endsWith("%") && isParentSize) {
+      const pct = parseFloat(trimmedValue) / 100;
+      if (!isFinite(pct) || parentDimension === 0) return baseDimension;
+      return Math.round(parentDimension * pct);
     }
-    if (trimmedValue.endsWith('%')) {
-      const percentage = parseFloat(trimmedValue) / 100;
-      if (isNaN(percentage)) {
-        console.warn('Invalid percentage value:', trimmedValue);
-        return baseDimension;
-      }
-      const result = Math.round(baseDimension * percentage);
-      return result;
+
+    // Percent relative to natural dimension
+    if (trimmedValue.endsWith("%")) {
+      const pct = parseFloat(trimmedValue) / 100;
+      if (!isFinite(pct)) return baseDimension;
+      return Math.round(baseDimension * pct);
     }
-    const result = parseInt(trimmedValue, 10);
-    if (isNaN(result)) {
-      console.warn('Invalid pixel value:', trimmedValue);
-      return baseDimension;
-    }
-    return result;
+
+    const px = parseInt(trimmedValue, 10);
+    return isNaN(px) ? baseDimension : px;
   }
 
-  document.querySelectorAll('.image-stack').forEach(function(stack) {
-    const tileMeta = stack.querySelector('.tile-meta');
-    if (!tileMeta) {
-      console.warn('No tile-meta found in image-stack:', stack);
-      return;
+  function safeJsonParse(raw, fallback) {
+    try {
+      return JSON.parse(raw);
+    } catch (e) {
+      return fallback;
+    }
+  }
+
+  function getTileMeta(stack) {
+    const tileMeta = stack.querySelector(".tile-meta");
+    if (!tileMeta) return null;
+    return tileMeta;
+  }
+
+  function getNaturalDims(tileMeta) {
+    // New background-rendering path stores natural dimensions on tile-meta
+    const nw = parseInt(tileMeta.dataset.naturalWidth, 10);
+    const nh = parseInt(tileMeta.dataset.naturalHeight, 10);
+
+    if (isFinite(nw) && isFinite(nh) && nw > 0 && nh > 0) {
+      return { naturalWidth: nw, naturalHeight: nh };
     }
 
-    const tileSize = parseInt(tileMeta.dataset.tileSize, 10);
-    if (isNaN(tileSize)) {
-      console.warn('Invalid tileSize in tile-meta:', tileMeta.dataset.tileSize);
-      return;
-    }
+    // Back-compat: old markup stored natural dims on top IMG
+    const stack = tileMeta.closest(".image-stack");
+    if (!stack) return null;
+    const topImg = stack.querySelector("img[data-natural-width][data-natural-height]");
+    if (!topImg) return null;
 
-    const topImg = stack.querySelector('img[data-natural-width][data-natural-height]');
-    if (!topImg) {
-      console.warn('No image with data-natural-width/height found in image-stack:', stack);
-      return;
-    }
+    const oldW = parseInt(topImg.getAttribute("data-natural-width"), 10);
+    const oldH = parseInt(topImg.getAttribute("data-natural-height"), 10);
+    if (!isFinite(oldW) || !isFinite(oldH) || oldW <= 0 || oldH <= 0) return null;
 
-    const naturalWidth = parseInt(topImg.getAttribute('data-natural-width'), 10);
-    const naturalHeight = parseInt(topImg.getAttribute('data-natural-height'), 10);
-    if (isNaN(naturalWidth) || isNaN(naturalHeight)) {
-      console.warn('Invalid natural width/height in image:', topImg);
-      return;
-    }
+    return { naturalWidth: oldW, naturalHeight: oldH };
+  }
 
+  function resizeImageStacks() {
+    document.querySelectorAll(".image-stack").forEach(function (stack) {
+      const tileMeta = getTileMeta(stack);
+      if (!tileMeta) return;
 
-    const isParentSize = tileMeta.dataset.parentSize === 'true';
+      const dims = getNaturalDims(tileMeta);
+      if (!dims) return;
 
-    // Use #photo-container as parent
-    const parentContainer = isParentSize ? stack.closest('#photo-container') : null;
+      const naturalWidth = dims.naturalWidth;
+      const naturalHeight = dims.naturalHeight;
 
-    const parentWidth = isParentSize ? parentContainer.getBoundingClientRect().width : naturalWidth;
-    const parentHeight = isParentSize ? parentContainer.getBoundingClientRect().height : naturalHeight;
+      const isParentSize =
+        String(tileMeta.dataset.parentSize).toLowerCase() === "true";
 
-    const breakpoints = JSON.parse(tileMeta.dataset.breakpoints || '[]');
+      // Prefer a stable parent container when parent sizing is enabled
+      const parentContainer = isParentSize ? stack.closest("#photo-container") : null;
 
-    const currentWidth = window.innerWidth;
+      const parentRect = parentContainer ? parentContainer.getBoundingClientRect() : null;
+      const parentWidth = parentRect ? parentRect.width : naturalWidth;
+      const parentHeight = parentRect ? parentRect.height : naturalHeight;
 
+      const breakpoints = safeJsonParse(tileMeta.dataset.breakpoints || "[]", []);
+      const currentWidth = window.innerWidth;
 
-    let targetWidth = naturalWidth;
-    let targetHeight = naturalHeight;
+      const widthAttr = tileMeta.dataset.width || (isParentSize ? "100%" : null);
+      const heightAttr = tileMeta.dataset.height || null;
 
-    // Check for user-defined width and height
-    const widthAttr = tileMeta.dataset.width || (isParentSize ? '100%' : null);
-    const heightAttr = tileMeta.dataset.height;
-
-
-    if (widthAttr) {
-      targetWidth = parseDimension(widthAttr, naturalWidth, isParentSize, parentWidth);
-      // Calculate height proportionally based on targetWidth and aspect ratio
       const aspectRatio = naturalHeight / naturalWidth;
-      targetHeight = Math.round(targetWidth * aspectRatio);
-    } else {
-      // Apply breakpoints if defined
-      for (const bp of breakpoints) {
-        if (currentWidth <= bp.maxWidth && bp.width) {
-          targetWidth = parseDimension(bp.width, naturalWidth, isParentSize, parentWidth);
-          // Calculate height proportionally based on targetWidth and aspect ratio
-          const aspectRatio = naturalHeight / naturalWidth;
-          targetHeight = Math.round(targetWidth * aspectRatio);
-          break;
+
+      let targetWidth = naturalWidth;
+      let targetHeight = naturalHeight;
+
+      // 1) Explicit width wins
+      if (widthAttr) {
+        targetWidth = parseDimension(widthAttr, naturalWidth, isParentSize, parentWidth);
+        targetHeight = Math.round(targetWidth * aspectRatio);
+      } else {
+        // 2) Breakpoints (width-based) next
+        for (const bp of breakpoints) {
+          if (currentWidth <= bp.maxWidth && bp.width) {
+            targetWidth = parseDimension(bp.width, naturalWidth, isParentSize, parentWidth);
+            targetHeight = Math.round(targetWidth * aspectRatio);
+            break;
+          }
         }
       }
+
+      // 3) Optional explicit height override (keeps aspect)
+      if (heightAttr) {
+        targetHeight = parseDimension(heightAttr, naturalHeight, isParentSize, parentHeight);
+        targetWidth = Math.round(targetHeight / aspectRatio);
+      }
+
+      // 4) Critical: snap the element box to the device pixel grid.
+      // This prevents fractional box sizes that can cause sampling drift.
+      const scaledWidth = snapToDevicePixels(targetWidth);
+      const scaledHeight = snapToDevicePixels(targetHeight);
+
+      stack.style.width = `${scaledWidth}px`;
+      stack.style.height = `${scaledHeight}px`;
+    });
+  }
+
+  /* ============================================================= */
+  /* Resize wiring: window + ResizeObserver                        */
+  /* ============================================================= */
+
+  window.addEventListener("DOMContentLoaded", () => {
+    scheduleResize();
+
+    // Observe likely container(s) so layout changes from outside CSS reflow still snap cleanly.
+    if ("ResizeObserver" in window) {
+      const ro = new ResizeObserver(() => scheduleResize());
+
+      // Observe all stacks (their box changes can matter)
+      document.querySelectorAll(".image-stack").forEach(el => ro.observe(el));
+
+      // Observe all #photo-container instances (your templates use this)
+      document.querySelectorAll("#photo-container").forEach(el => ro.observe(el));
+
+      // Also observe the document element for font-size/layout shifts
+      ro.observe(document.documentElement);
+    }
+  });
+
+  window.addEventListener("resize", () => scheduleResize());
+
+  /* ============================================================= */
+  /* Right-click prevention (kept; mostly legacy)                  */
+  /* ============================================================= */
+
+  document.addEventListener(
+    "contextmenu",
+    function (event) {
+      // Old path: IMG elements
+      if (event.target.tagName === "IMG") {
+        event.preventDefault();
+        return false;
+      }
+      // New path: background-layer stacks
+      const stack = event.target.closest && event.target.closest(".image-stack");
+      if (stack) {
+        event.preventDefault();
+        return false;
+      }
+    },
+    false
+  );
+
+  document.addEventListener(
+    "mousedown",
+    function (event) {
+      // Old path: right mouse on IMG
+      if (event.button === 2 && event.target.tagName === "IMG") {
+        console.log("Right-clicking on images is disabled");
+        return false;
+      }
+      // New path: right mouse on stack
+      if (event.button === 2 && event.target.closest && event.target.closest(".image-stack")) {
+        console.log("Right-clicking on images is disabled");
+        return false;
+      }
+    },
+    false
+  );
+
+  /* ============================================================= */
+  /* 1. LAZY LOADER – legacy (kept for back-compat)                */
+  /* ============================================================= */
+
+  class LazyLoader {
+    constructor() {
+      this.observer = new IntersectionObserver(this.handleIntersect.bind(this), {
+        rootMargin: "200px",
+      });
+      this.tracked = new Set();
     }
 
-    // Quantize dimensions to the nearest tile size multiple
-    const scaledWidth = Math.round(targetWidth / tileSize) * tileSize;
-    const scaledHeight = Math.round(targetHeight / tileSize) * tileSize;
-    stack.style.width = `${scaledWidth}px`;
-    stack.style.height = `${scaledHeight}px`;
-  });
-}
-
-window.addEventListener('DOMContentLoaded', () => {
-  requestAnimationFrame(() => {
-    resizeImageStacks();
-  });
-});
-window.addEventListener('resize', () => {
-  resizeImageStacks();
-});
-
-// Prevent right-clicking only on images
-document.addEventListener('contextmenu', function(event) {
-  // Check if the clicked element is an image
-  if (event.target.tagName === 'IMG') {
-    event.preventDefault();
-    return false;
-  }
-  // Allow context menu on all other elements
-}, false);
-
-// Optional: Add a message when users attempt to right-click on images
-document.addEventListener('mousedown', function(event) {
-  if (event.button === 2 && event.target.tagName === 'IMG') { // Right mouse button on image
-    console.log('Right-clicking on images is disabled');
-    return false;
-  }
-}, false);
-
-
-
-/* ============================================================= */
-/* 1. LAZY LOADER – fixed, reliable, forces re-entry after pause */
-/* ============================================================= */
-class LazyLoader {
-  constructor() {
-    this.observer = new IntersectionObserver(
-      this.handleIntersect.bind(this),
-      { rootMargin: '200px' }
-    );
-    this.tracked = new Set();   // all images we are watching
-  }
-
-  observe(img) {
-    if (!img.dataset.src || img.classList.contains('loaded')) return;
-    if (!this.tracked.has(img)) {
-      this.tracked.add(img);
-      this.observer.observe(img);
+    observe(img) {
+      if (!img.dataset.src || img.classList.contains("loaded")) return;
+      if (!this.tracked.has(img)) {
+        this.tracked.add(img);
+        this.observer.observe(img);
+      }
     }
-  }
 
-  unobserve(img) {
-    this.tracked.delete(img);
-    this.observer.unobserve(img);
-  }
+    unobserve(img) {
+      this.tracked.delete(img);
+      this.observer.unobserve(img);
+    }
 
-  unobserveAll() {
-    this.tracked.forEach(img => this.observer.unobserve(img));
-  }
+    unobserveAll() {
+      this.tracked.forEach((img) => this.observer.unobserve(img));
+    }
 
-  // CRITICAL: Forces observer to re-check all entries
     reconnect() {
       this.observer.disconnect();
       setTimeout(() => {
-        this.tracked.forEach(img => {
-          if (!img.classList.contains('loaded')) {
-            this.observer.observe(img);  // observe ALL
+        this.tracked.forEach((img) => {
+          if (!img.classList.contains("loaded")) {
+            this.observer.observe(img);
           }
         });
       }, 0);
     }
 
-  handleIntersect(entries) {
-    entries.forEach(entry => {
-      if (!entry.isIntersecting) return;
-      this.loadImage(entry.target);
-    });
+    handleIntersect(entries) {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        this.loadImage(entry.target);
+      });
+    }
+
+    loadImage(img) {
+      const src = img.dataset.src;
+      img.src = src;
+
+      const poll = () => {
+        if (img.complete && img.naturalWidth > 0) {
+          img.classList.add("loaded");
+          this.unobserve(img);
+        } else {
+          requestAnimationFrame(poll);
+        }
+      };
+      poll();
+    }
   }
 
-  loadImage(img) {
-    const src = img.dataset.src;
-    img.src = src;
+  /* ============================================================= */
+  /* 2. SCROLL SPEED – measures px/s, emits fast/slow events       */
+  /* ============================================================= */
 
-    const poll = () => {
-      if (img.complete && img.naturalWidth > 0) {
-        img.classList.add('loaded');
-        this.unobserve(img);
-      } else {
-        requestAnimationFrame(poll);
-      }
+  class ScrollSpeed {
+    constructor(threshold = 3000) {
+      this.threshold = threshold;
+      this.lastY = window.scrollY;
+      this.lastT = performance.now();
+      this.isFast = false;
+      this.callbacks = [];
+    }
+
+    start() {
+      this.loop();
+    }
+
+    on(event, cb) {
+      this.callbacks.push({ event, cb });
+    }
+
+    emit(event, data) {
+      this.callbacks.forEach((c) => c.event === event && c.cb(data));
+    }
+
+    loop = () => {
+      const now = performance.now();
+      const y = window.scrollY;
+      const dt = now - this.lastT || 1;
+      const dy = Math.abs(y - this.lastY);
+      const speed = dy / (dt / 1000);
+
+      const wasFast = this.isFast;
+      this.isFast = speed > this.threshold;
+
+      if (!wasFast && this.isFast) this.emit("fast");
+      if (wasFast && !this.isFast) this.emit("slow");
+
+      this.lastY = y;
+      this.lastT = now;
+      requestAnimationFrame(this.loop);
     };
-    poll();
-  }
-}
-
-/* ============================================================= */
-/* 2. SCROLL SPEED – measures px/s, emits fast/slow events     */
-/* ============================================================= */
-class ScrollSpeed {
-  constructor(threshold = 3000) {
-    this.threshold = threshold;
-    this.lastY = window.scrollY;
-    this.lastT = performance.now();
-    this.isFast = false;
-    this.callbacks = [];
   }
 
-  start() {
-    this.loop();
-  }
+  /* ============================================================= */
+  /* 3. SCROLL CONTROLLER – pauses/resumes loader on fling         */
+  /* ============================================================= */
 
-  on(event, cb) {
-    this.callbacks.push({ event, cb });
-  }
+  class ScrollController {
+    constructor(loader, speed, settleMs = 180) {
+      this.loader = loader;
+      this.speed = speed;
+      this.settleMs = settleMs;
+      this.settleTimer = null;
+      this.paused = false;
+    }
 
-  emit(event, data) {
-    this.callbacks.forEach(c => c.event === event && c.cb(data));
-  }
+    start() {
+      this.speed.on("fast", () => this.pause());
+      this.speed.on("slow", () => this.scheduleResume());
+    }
 
-  loop = () => {
-    const now = performance.now();
-    const y = window.scrollY;
-    const dt = now - this.lastT || 1;
-    const dy = Math.abs(y - this.lastY);
-    const speed = dy / (dt / 1000);
+    pause() {
+      if (this.paused) return;
+      this.paused = true;
+      this.loader.unobserveAll();
+      clearTimeout(this.settleTimer);
+    }
 
-    const wasFast = this.isFast;
-    this.isFast = speed > this.threshold;
+    scheduleResume() {
+      clearTimeout(this.settleTimer);
+      this.settleTimer = setTimeout(() => {
+        this.resume();
+      }, this.settleMs);
+    }
 
-    if (!wasFast && this.isFast) this.emit('fast');
-    if (wasFast && !this.isFast) this.emit('slow');
-
-    this.lastY = y;
-    this.lastT = now;
-    requestAnimationFrame(this.loop);
-  };
-}
-
-/* ============================================================= */
-/* 3. SCROLL CONTROLLER – pauses/resumes loader on fling       */
-/* ============================================================= */
-class ScrollController {
-  constructor(loader, speed, settleMs = 180) {
-    this.loader = loader;
-    this.speed = speed;
-    this.settleMs = settleMs;
-    this.settleTimer = null;
-    this.paused = false;
-  }
-
-  start() {
-    this.speed.on('fast', () => this.pause());
-    this.speed.on('slow', () => this.scheduleResume());
-  }
-
-  pause() {
-    if (this.paused) return;
-    this.paused = true;
-    this.loader.unobserveAll();
-    clearTimeout(this.settleTimer);
-  }
-
-  scheduleResume() {
-    clearTimeout(this.settleTimer);
-    this.settleTimer = setTimeout(() => {
-      this.resume();
-    }, this.settleMs);
-  }
-
-  resume() {
-    if (!this.paused) return;
-    this.paused = false;
-    this.observeVisible();
-    this.loader.reconnect();  // Forces IntersectionObserver to re-check
-  }
+    resume() {
+      if (!this.paused) return;
+      this.paused = false;
+      this.observeVisible();
+      this.loader.reconnect();
+    }
 
     observeVisible() {
       const vh = window.innerHeight;
@@ -293,11 +358,9 @@ class ScrollController {
       const bot = top + vh;
       const buf = 300;
 
-      let observed = 0;
-      document.querySelectorAll('img.lazy').forEach(img => {
-        if (img.classList.contains('loaded')) return;
+      document.querySelectorAll("img.lazy").forEach((img) => {
+        if (img.classList.contains("loaded")) return;
 
-        // ADD TO TRACKED (even if not visible)
         if (!this.loader.tracked.has(img)) {
           this.loader.tracked.add(img);
         }
@@ -308,38 +371,29 @@ class ScrollController {
 
         if (imgBottom > top - buf && imgTop < bot + buf) {
           this.loader.observer.observe(img);
-          observed++;
         }
       });
-
-      //console.log(`→ Re-observed ${observed} visible images (total tracked: ${this.loader.tracked.size})`);
     }
-}
+  }
 
-/* ============================================================= */
-/* 4. BOOTSTRAP – wire everything together                     */
-/* ============================================================= */
-document.addEventListener('DOMContentLoaded', () => {
-  const loader = new LazyLoader();
-  const speed = new ScrollSpeed(3000);
-  const controller = new ScrollController(loader, speed, 180);
+  /* ============================================================= */
+  /* 4. BOOTSTRAP – wire everything together                       */
+  /* ============================================================= */
 
-  // Observe ALL lazy images
-  const lazyImages = document.querySelectorAll('img.lazy');
-  console.log(`Found ${lazyImages.length} lazy images on load`);
-  lazyImages.forEach(img => loader.observe(img));
+  document.addEventListener("DOMContentLoaded", () => {
+    const loader = new LazyLoader();
+    const speed = new ScrollSpeed(3000);
+    const controller = new ScrollController(loader, speed, 180);
 
-  // Start systems
-  speed.start();
-  controller.start();
+    // Observe ALL lazy images (legacy path)
+    const lazyImages = document.querySelectorAll("img.lazy");
+    console.log(`Found ${lazyImages.length} lazy images on load`);
+    lazyImages.forEach((img) => loader.observe(img));
 
-  // Initial visible load
-  controller.observeVisible();
+    speed.start();
+    controller.start();
+    controller.observeVisible();
 
-  // Debug helper
-  window._debugLazy = { loader, speed, controller };
-});
-
-
-
-
+    window._debugLazy = { loader, speed, controller };
+  });
+})();
