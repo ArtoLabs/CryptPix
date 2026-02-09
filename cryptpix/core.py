@@ -13,6 +13,7 @@ def choose_tile_size(width, height):
         return 12
 
 
+
 def distort_image(input_path):
     """
     Apply a random hue rotation (30-180 degrees) and invert colors on an image.
@@ -26,16 +27,21 @@ def distort_image(input_path):
     hue_rotation = random.randint(30, 180)
     img = Image.open(input_path).convert('RGB')
 
+    # Convert to HSV
     hsv = img.convert('HSV')
     h, s, v = hsv.split()
 
+    # Apply hue rotation (Pillow hue is 0–255, so scale accordingly)
     hue_shift = int((hue_rotation / 360.0) * 255)
     h_data = h.load()
     for y in range(h.size[1]):
         for x in range(h.size[0]):
             h_data[x, y] = (h_data[x, y] + hue_shift) % 256
 
+    # Reconstruct and convert back to RGB
     distorted_rgb = Image.merge('HSV', (h, s, v)).convert('RGB')
+
+    # Invert colors
     final_image = ImageOps.invert(distorted_rgb)
 
     return final_image, hue_rotation
@@ -48,41 +54,6 @@ def crop_to_divisible(image, block_size):
     return image.crop((0, 0, new_width, new_height))
 
 
-def apply_bleed(layer, bleed=1):
-    """
-    Extend opaque pixels into adjacent transparent pixels to prevent
-    resampling seams between checkerboard tiles.
-    """
-    pixels = layer.load()
-    width, height = layer.size
-
-    for _ in range(bleed):
-        updates = []
-
-        for y in range(height):
-            for x in range(width):
-                r, g, b, a = pixels[x, y]
-                if a != 0:
-                    continue
-
-                for nx, ny in (
-                    (x - 1, y),
-                    (x + 1, y),
-                    (x, y - 1),
-                    (x, y + 1),
-                ):
-                    if 0 <= nx < width and 0 <= ny < height:
-                        rr, gg, bb, aa = pixels[nx, ny]
-                        if aa != 0:
-                            updates.append((x, y, (rr, gg, bb, aa)))
-                            break
-
-        for x, y, value in updates:
-            pixels[x, y] = value
-
-    return layer
-
-
 def process_and_split_image(image):
     """
     Process and split an image into two layers.
@@ -93,6 +64,7 @@ def process_and_split_image(image):
     Returns:
         tuple: (cropped_buffer, buffer1, buffer2, block_size, width, height)
     """
+    # Convert to RGBA if not already
     image = image.convert("RGBA")
     width, height = image.size
 
@@ -119,19 +91,19 @@ def process_and_split_image(image):
                     else:
                         pixels2[px, py] = pixel
 
-    # NEW: seam-prevention bleed
-    # layer1 = apply_bleed(layer1, bleed=1)
-    # layer2 = apply_bleed(layer2, bleed=1)
-
+    # Save cropped image and layers to BytesIO
     cropped_buffer = BytesIO()
     buffer1 = BytesIO()
     buffer2 = BytesIO()
     cropped_image.save(cropped_buffer, format="PNG")
     layer1.save(buffer1, format="PNG")
     layer2.save(buffer2, format="PNG")
-
     cropped_buffer.seek(0)
     buffer1.seek(0)
     buffer2.seek(0)
 
     return cropped_buffer, buffer1, buffer2, block_size, width, height
+
+
+
+

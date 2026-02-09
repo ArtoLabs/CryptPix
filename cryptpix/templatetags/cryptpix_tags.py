@@ -4,16 +4,13 @@ from django.utils.html import format_html_join
 from cryptpix.html import get_css, render_image_stack
 from django.utils.safestring import mark_safe
 from django.utils.html import escape
-
 import json
 
 register = template.Library()
 
-
 @register.simple_tag
 def cryptpix_css():
     return mark_safe(get_css())
-
 
 @register.tag
 def cryptpix_image(parser, token):
@@ -39,14 +36,12 @@ def cryptpix_image(parser, token):
 
     return CryptPixImageNode(photo_var, attrs)
 
-
 class CryptPixImageNode(template.Node):
     def __init__(self, photo_var, attrs):
         self.photo_var = photo_var
         self.attrs = attrs
 
     def render(self, context):
-
         request = context.get('request')
         try:
             photo = self.photo_var.resolve(context)
