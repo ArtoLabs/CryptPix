@@ -1,16 +1,18 @@
 from django import template
-from django.template.base import TokenType
-from django.utils.html import format_html_join
-from cryptpix.html import get_css, render_image_stack
 from django.utils.safestring import mark_safe
 from django.utils.html import escape
+
+from cryptpix.html import get_css, render_image_stack, render_single_image
+
 import json
 
 register = template.Library()
 
+
 @register.simple_tag
 def cryptpix_css():
     return mark_safe(get_css())
+
 
 @register.tag
 def cryptpix_image(parser, token):
@@ -28,13 +30,12 @@ def cryptpix_image(parser, token):
     attrs = {}
     for bit in raw_attrs:
         if "=" not in bit:
-            raise template.TemplateSyntaxError(
-                f"Malformed attribute assignment: {bit}"
-            )
+            raise template.TemplateSyntaxError(f"Malformed attribute assignment: {bit}")
         key, val = bit.split("=", 1)
         attrs[key] = parser.compile_filter(val)
 
     return CryptPixImageNode(photo_var, attrs)
+
 
 class CryptPixImageNode(template.Node):
     def __init__(self, photo_var, attrs):
@@ -42,22 +43,28 @@ class CryptPixImageNode(template.Node):
         self.attrs = attrs
 
     def render(self, context):
-        request = context.get('request')
+        request = context.get("request")
+
         try:
             photo = self.photo_var.resolve(context)
-            # url1 = getattr(photo, "image_layer_1").url
-            # url2 = getattr(photo, "image_layer_2").url
+
             image_id = getattr(photo, "pk", None)
+
+            # New flags (set at save-time, treated as immutable)
+            use_split = bool(getattr(photo, "use_split", False))
+            use_distortion = bool(getattr(photo, "use_distortion", False))
+
+            # Metadata (present/meaningful for split mode; hue_rotation meaningful for distortion)
             tile_size = getattr(photo, "tile_size", None)
             width = getattr(photo, "image_width", None)
             height = getattr(photo, "image_height", None)
             hue_rotation = getattr(photo, "hue_rotation", None)
 
             # Allow override via tag attributes
-            width_attr = self.attrs.get('width')
-            height_attr = self.attrs.get('height')
-            breakpoints = self.attrs.get('breakpoints')
-            parent_size = self.attrs.get('data-parent-size')  # New attribute for data-parent-size
+            width_attr = self.attrs.get("width")
+            height_attr = self.attrs.get("height")
+            breakpoints = self.attrs.get("breakpoints")
+            parent_size = self.attrs.get("data-parent-size")
 
             if width_attr:
                 width_attr = width_attr.resolve(context)
@@ -73,17 +80,39 @@ class CryptPixImageNode(template.Node):
         except Exception as e:
             return f"<!-- CryptPix Error: {str(e)} -->"
 
-        top_img_attrs = []
+        # All tag attrs (except the control/meta attrs above) get applied to the top image (split)
+        # or to the single image (non-split).
+        passthrough_attrs = []
         for key, val in self.attrs.items():
-            if key not in ['width', 'height', 'breakpoints', 'data-parent-size']:  # Exclude parent-size
+            if key not in ["width", "height", "breakpoints", "data-parent-size"]:
                 resolved_val = val.resolve(context)
-                top_img_attrs.append(f'{key}="{escape(resolved_val)}"')
+                passthrough_attrs.append(f'{key}="{escape(resolved_val)}"')
+        passthrough_attrs_str = " ".join(passthrough_attrs)
 
-        top_img_attrs_str = " ".join(top_img_attrs)
+        if use_split:
+            return render_image_stack(
+                image_id,
+                request,
+                tile_size,
+                width,
+                height,
+                hue_rotation,
+                use_distortion=use_distortion,
+                top_img_attrs=mark_safe(passthrough_attrs_str),
+                width_attr=width_attr,
+                height_attr=height_attr,
+                breakpoints=breakpoints,
+                parent_size=parent_size,
+            )
 
-        return render_image_stack(
-            image_id, request, tile_size, width, height, hue_rotation,
-            top_img_attrs=mark_safe(top_img_attrs_str),
-            width_attr=width_attr, height_attr=height_attr,
-            breakpoints=breakpoints, parent_size=parent_size
+        # Not split: render a single secure derivative (layer 1)
+        return render_single_image(
+            image_id,
+            request,
+            layer=1,
+            use_distortion=use_distortion,
+            hue_rotation=hue_rotation,
+            img_attrs=mark_safe(passthrough_attrs_str),
+            natural_width=width,
+            natural_height=height,
         )
