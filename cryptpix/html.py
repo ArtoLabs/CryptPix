@@ -81,8 +81,6 @@ def _distortion_filter_style(use_distortion: bool, hue_rotation) -> str:
     if not use_distortion:
         return ""
     if hue_rotation in (None, "", 0, "0"):
-        # If distortion is "enabled" but hue_rotation isn't present, still invert to be consistent.
-        # Realistically hue_rotation should be set whenever use_distortion=True at save-time.
         return "filter: invert(100%);"
     return f"filter: invert(100%) hue-rotate(-{hue_rotation}deg);"
 
@@ -111,6 +109,7 @@ def render_single_image(
     style = _distortion_filter_style(use_distortion, hue_rotation)
     style_attr = f' style="{style}"' if style else ""
 
+    # Always include when provided (some external scripts rely on these)
     natural_attrs = ""
     if natural_width is not None:
         natural_attrs += f' data-natural-width="{natural_width}"'
@@ -145,6 +144,11 @@ def render_image_stack(
 
     If use_distortion=True, applies the reversal filter.
     If use_distortion=False, no filter is applied.
+
+    IMPORTANT:
+      - data-natural-width / data-natural-height are emitted on BOTH:
+        (1) the wrapper .image-stack (for scripts that query the container)
+        (2) the top image (backward compatibility)
     """
     breakpoints_json = json.dumps(breakpoints or [])
     top_img_attrs = add_lazy_class(top_img_attrs)
@@ -166,8 +170,14 @@ def render_image_stack(
     style = _distortion_filter_style(use_distortion, hue_rotation)
     style_attr = f'style="{style}"' if style else ""
 
+    wrapper_natural = ""
+    if width is not None:
+        wrapper_natural += f' data-natural-width="{width}"'
+    if height is not None:
+        wrapper_natural += f' data-natural-height="{height}"'
+
     html = f"""
-<div class="image-stack">
+<div class="image-stack"{wrapper_natural}>
   <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
        data-src="{escape(get_secure_image_url(image_id_1, request))}"
        loading="lazy" {style_attr} class="lazy">
