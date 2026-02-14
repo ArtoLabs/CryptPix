@@ -61,12 +61,12 @@ def add_lazy_class(attrs: str) -> str:
     """
     import re
 
-    class_match = re.search(r'class=["\'](.*?)["\']', attrs)
+    class_match = re.search(r'class=["\'](.*?)['"\']', attrs)
     if class_match:
         classes = class_match.group(1).split()
         if "lazy" not in classes:
             classes.append("lazy")
-        attrs = re.sub(r'class=["\'](.*?)["\']', f'class="{" ".join(classes)}"', attrs)
+        attrs = re.sub(r'class=["\'](.*?)["\']', f'class="{' '.join(classes)}"', attrs)
     else:
         attrs = f'class="lazy" {attrs}'.strip()
 
@@ -93,6 +93,7 @@ def render_single_image(
     use_distortion=False,
     hue_rotation=None,
     img_attrs="",
+    img_id=None,
     natural_width=None,
     natural_height=None,
 ):
@@ -116,11 +117,12 @@ def render_single_image(
     if natural_height is not None:
         natural_attrs += f' data-natural-height="{natural_height}"'
 
+    id_attr = f' id="{escape(img_id)}"' if img_id else ""
 
     html = f"""
 <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
      data-src="{escape(get_secure_image_url(secure_id, request))}"
-     loading="lazy"{style_attr} {img_attrs} {natural_attrs}>
+     loading="lazy" {style_attr} {id_attr} {img_attrs} {natural_attrs}>
 """
     return mark_safe(html)
 
@@ -135,6 +137,7 @@ def render_image_stack(
     *,
     use_distortion=False,
     top_img_attrs="",
+    top_img_id=None,
     width_attr=None,
     height_attr=None,
     breakpoints=None,
@@ -177,6 +180,8 @@ def render_image_stack(
     if height is not None:
         wrapper_natural += f' data-natural-height="{height}"'
 
+    top_id_attr = f' id="{escape(top_img_id)}"' if top_img_id else ""
+
     html = f"""
 <div class="image-stack"{wrapper_natural}>
   <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
@@ -184,7 +189,7 @@ def render_image_stack(
        loading="lazy" {style_attr} class="lazy">
   <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
        data-src="{escape(get_secure_image_url(image_id_2, request))}"
-       loading="lazy" {style_attr} {top_img_attrs} data-natural-width="{width}" data-natural-height="{height}">
+       loading="lazy" {style_attr} {top_id_attr} {top_img_attrs} data-natural-width="{width}" data-natural-height="{height}">
   <div class="tile-meta" {" ".join(meta_attrs)} hidden></div>
 </div>
 """
