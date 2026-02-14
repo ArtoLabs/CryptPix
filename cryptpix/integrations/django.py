@@ -95,9 +95,18 @@ class CryptPixModelMixin(models.Model):
                 if self.image_layer_2:
                     self.image_layer_2.delete(save=False)
                 self.image_layer_2 = None
+
+                # Set image dimensions from the processed image (working_image is a PIL Image)
+                try:
+                    width, height = working_image.size
+                except Exception:
+                    # If we can't determine size for any reason, keep fields cleared (null)
+                    width = None
+                    height = None
+
                 self.tile_size = None
-                self.image_width = None
-                self.image_height = None
+                self.image_width = width
+                self.image_height = height
 
             # Set/clear distortion metadata
             self.hue_rotation = hue_rotation if self.use_distortion else None

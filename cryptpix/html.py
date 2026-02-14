@@ -116,10 +116,11 @@ def render_single_image(
     if natural_height is not None:
         natural_attrs += f' data-natural-height="{natural_height}"'
 
+
     html = f"""
 <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
      data-src="{escape(get_secure_image_url(secure_id, request))}"
-     loading="lazy"{style_attr} {img_attrs}{natural_attrs}>
+     loading="lazy"{style_attr} {img_attrs} {natural_attrs}>
 """
     return mark_safe(html)
 
