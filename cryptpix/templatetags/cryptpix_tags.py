@@ -65,9 +65,10 @@ class CryptPixImageNode(template.Node):
             height_attr = self.attrs.get("height")
             breakpoints = self.attrs.get("breakpoints")
             parent_size = self.attrs.get("data-parent-size")
-
-            # Capture explicit id attribute (resolve below) so we can emit it reliably
             id_attr = self.attrs.get("id")
+
+            print("Debug: Resolved attributes before applying overrides:")
+            print(id_attr)
 
             if width_attr:
                 width_attr = width_attr.resolve(context)
@@ -78,19 +79,16 @@ class CryptPixImageNode(template.Node):
             if parent_size:
                 parent_size = parent_size.resolve(context)
 
-            if id_attr:
-                id_attr = id_attr.resolve(context)
-
         except template.VariableDoesNotExist:
             return "<!-- CryptPix Error: Photo variable does not exist in context -->"
         except Exception as e:
             return f"<!-- CryptPix Error: {str(e)} -->"
 
-        # All tag attrs (except the control/meta attrs above and `id`) get applied to the top image (split)
-        # or to the single image (non-split). We treat `id` specially so it is always emitted.
+        # All tag attrs (except the control/meta attrs above) get applied to the top image (split)
+        # or to the single image (non-split).
         passthrough_attrs = []
         for key, val in self.attrs.items():
-            if key not in ["width", "height", "breakpoints", "data-parent-size", "id"]:
+            if key not in ["width", "height", "breakpoints", "data-parent-size"]:
                 resolved_val = val.resolve(context)
                 passthrough_attrs.append(f'{key}="{escape(resolved_val)}"')
         passthrough_attrs_str = " ".join(passthrough_attrs)
@@ -105,7 +103,6 @@ class CryptPixImageNode(template.Node):
                 hue_rotation,
                 use_distortion=use_distortion,
                 top_img_attrs=mark_safe(passthrough_attrs_str),
-                top_img_id=id_attr,
                 width_attr=width_attr,
                 height_attr=height_attr,
                 breakpoints=breakpoints,
@@ -120,7 +117,6 @@ class CryptPixImageNode(template.Node):
             use_distortion=use_distortion,
             hue_rotation=hue_rotation,
             img_attrs=mark_safe(passthrough_attrs_str),
-            img_id=id_attr,
             natural_width=width,
             natural_height=height,
         )

@@ -61,13 +61,22 @@ def add_lazy_class(attrs: str) -> str:
     """
     import re
 
-    class_match = re.search(r'class=["\'](.*?)['"\']', attrs)
+    # If attrs is empty or only whitespace, just return a class attr
+    if not attrs or not attrs.strip():
+        return 'class="lazy"'
+
+    # Match class="..." or class='...'
+    class_match = re.search(r'class=("|\')(.*?)\1', attrs)
     if class_match:
-        classes = class_match.group(1).split()
+        quote = class_match.group(1)
+        classes = class_match.group(2).split()
         if "lazy" not in classes:
             classes.append("lazy")
-        attrs = re.sub(r'class=["\'](.*?)["\']', f'class="{' '.join(classes)}"', attrs)
+        new_classes = " ".join(classes)
+        # Replace only the first occurrence
+        attrs = re.sub(r'class=("|\')(.*?)\1', f'class={quote}{new_classes}{quote}', attrs, count=1)
     else:
+        # No class attribute present; prepend one
         attrs = f'class="lazy" {attrs}'.strip()
 
     return attrs
