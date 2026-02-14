@@ -65,10 +65,6 @@ class CryptPixImageNode(template.Node):
             height_attr = self.attrs.get("height")
             breakpoints = self.attrs.get("breakpoints")
             parent_size = self.attrs.get("data-parent-size")
-            id_attr = self.attrs.get("id")
-
-            print("Debug: Resolved attributes before applying overrides:")
-            print(id_attr)
 
             if width_attr:
                 width_attr = width_attr.resolve(context)
@@ -87,11 +83,17 @@ class CryptPixImageNode(template.Node):
         # All tag attrs (except the control/meta attrs above) get applied to the top image (split)
         # or to the single image (non-split).
         passthrough_attrs = []
+        wrapper_attrs = []
         for key, val in self.attrs.items():
             if key not in ["width", "height", "breakpoints", "data-parent-size"]:
                 resolved_val = val.resolve(context)
-                passthrough_attrs.append(f'{key}="{escape(resolved_val)}"')
+                attr_str = f'{key}="{escape(resolved_val)}"'
+                passthrough_attrs.append(attr_str)
+                # id and class attributes should also be applied to the wrapper div in split mode
+                if key in ["id", "class"]:
+                    wrapper_attrs.append(attr_str)
         passthrough_attrs_str = " ".join(passthrough_attrs)
+        wrapper_attrs_str = " ".join(wrapper_attrs)
 
         if use_split:
             return render_image_stack(
@@ -103,6 +105,7 @@ class CryptPixImageNode(template.Node):
                 hue_rotation,
                 use_distortion=use_distortion,
                 top_img_attrs=mark_safe(passthrough_attrs_str),
+                wrapper_attrs=mark_safe(wrapper_attrs_str),
                 width_attr=width_attr,
                 height_attr=height_attr,
                 breakpoints=breakpoints,
