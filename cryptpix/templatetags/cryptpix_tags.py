@@ -19,6 +19,12 @@ def cryptpix_image(parser, token):
     bits = token.split_contents()
     tag_name = bits[0]
 
+    # Debug: Print bits information
+    print(f"DEBUG cryptpix_image: bits = {bits}")
+    print(f"DEBUG cryptpix_image: len(bits) = {len(bits)}")
+    for i, bit in enumerate(bits):
+        print(f"DEBUG cryptpix_image: bits[{i}] = {repr(bit)}")
+
     if len(bits) < 2:
         raise template.TemplateSyntaxError(
             f"'{tag_name}' tag requires at least 1 argument: photo instance"
