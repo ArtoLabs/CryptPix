@@ -118,9 +118,11 @@ def render_single_image(
 
 
     html = f"""
-<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
+<div class="image-stack"{natural_attrs}>
+    <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
      data-src="{escape(get_secure_image_url(secure_id, request))}"
      loading="lazy" {style_attr} {img_attrs} {natural_attrs}>
+</div>
 """
     return mark_safe(html)
 
