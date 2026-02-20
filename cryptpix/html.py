@@ -10,7 +10,8 @@ import json
 def get_css():
     return """
 <style>
-  .image-stack {
+  /* Stack-only layout/positioning (do NOT apply to singles) */
+  .image-stack[data-layout="stack"] {
     width: 100%;
     height: 100%;
     position: relative;
@@ -20,26 +21,30 @@ def get_css():
     background-color: rgba(0, 0, 0, 0);
     z-index: 10;
   }
-
-  /* Default (single image): participate in normal layout */
-  .image-stack img {
-    display: block;
-    width: 100%;
-    height: auto;
-    object-fit: contain;
-    image-rendering: pixelated;
-  }
-
-  /* Stack mode (2+ images): layer them */
-  .image-stack img:not(:only-child) {
+  .image-stack[data-layout="stack"] img {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
+    object-fit: contain;
+    image-rendering: pixelated;
   }
 
-  /* Lazy fade-in */
+  /* Single-image layout: normal flow sizing, no absolute positioning */
+  .image-stack[data-layout="single"] {
+    display: inline-block;
+    max-width: 100%;
+  }
+  .image-stack[data-layout="single"] img {
+    position: static;
+    display: block;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+  }
+
+  /* Lazy fade-in (applies to both stacks and singles) */
   img.lazy {
     opacity: 0;
     transition: opacity 1.2s ease-out;
@@ -108,39 +113,37 @@ def render_single_image(
     """
     Render a single secure image.
 
-    IMPORTANT:
-      - Markup is aligned to the canonical DOM emitted by render_image_stack:
-        outer wrapper .image-stack + inner .tile-meta (hidden)
-      - The single image uses the same class contract (lazy) and the same
-        data-natural-width/height attributes used by the stacked "top" image.
-      - Only ONE img element is emitted (no dummy/second image).
+    Backwards-compatible DOM contract:
+      - Emit the SAME wrapper element/class as render_image_stack (.image-stack)
+      - Keep the SAME <img> class and data-* attributes contract as stacked <img>s
+      - No dummy images
+
+    Stack-only behavior is gated elsewhere by data-layout="stack" vs "single".
     """
     img_attrs = add_lazy_class(img_attrs)
 
     secure_id = f"{image_id}_{layer}"
     style = _distortion_filter_style(use_distortion, hue_rotation)
-    style_attr = f'style="{style}"' if style else ""
+    style_attr = f' style="{style}"' if style else ""
 
-    # Emit natural size on BOTH:
-    # (1) wrapper .image-stack (for scripts that query the container)
-    # (2) the img (to match the stacked top image contract)
+    # Keep these data attrs identical to what consumers may use on stacked imgs
+    natural_attrs = ""
+    if natural_width is not None:
+        natural_attrs += f' data-natural-width="{natural_width}"'
+    if natural_height is not None:
+        natural_attrs += f' data-natural-height="{natural_height}"'
+
     wrapper_natural = ""
-    img_natural = ""
     if natural_width is not None:
         wrapper_natural += f' data-natural-width="{natural_width}"'
-        img_natural += f' data-natural-width="{natural_width}"'
     if natural_height is not None:
         wrapper_natural += f' data-natural-height="{natural_height}"'
-        img_natural += f' data-natural-height="{natural_height}"'
 
-    # Keep the same inner container element shape as render_image_stack
-    # (tile-meta exists, but is intentionally inert for single images).
     html = f"""
-<div class="image-stack"{wrapper_natural}>
+<div class="image-stack" data-layout="single"{wrapper_natural}>
   <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
        data-src="{escape(get_secure_image_url(secure_id, request))}"
-       loading="lazy" {style_attr} {img_attrs}{img_natural}>
-  <div class="tile-meta" data-breakpoints='[]' hidden></div>
+       loading="lazy"{style_attr} {img_attrs}{natural_attrs}>
 </div>
 """
     return mark_safe(html)
@@ -200,7 +203,7 @@ def render_image_stack(
         wrapper_natural += f' data-natural-height="{height}"'
 
     html = f"""
-<div class="image-stack"{wrapper_natural} {wrapper_attrs}>
+<div class="image-stack" data-layout="stack"{wrapper_natural} {wrapper_attrs}>
   <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
        data-src="{escape(get_secure_image_url(image_id_1, request))}"
        loading="lazy" {style_attr} class="lazy">

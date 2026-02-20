@@ -37,11 +37,13 @@ function resizeImageStacks() {
     return result;
   }
 
-  document.querySelectorAll('.image-stack').forEach(function(stack) {
+  // STACK-ONLY: select only real stacks
+  document.querySelectorAll('.image-stack[data-layout="stack"]').forEach(function(stack) {
 
-    // IMPORTANT: Only resize REAL stacks (2+ images). Single images now share the same wrapper.
-    const imgs = stack.querySelectorAll('img');
-    if (imgs.length < 2) {
+    // No-op unless this container has exactly two images (the two layers)
+    const surface = stack.querySelector('.image-surface') || stack;
+    const imgs = surface.querySelectorAll('img');
+    if (imgs.length !== 2) {
       return;
     }
 
@@ -174,16 +176,16 @@ class LazyLoader {
   }
 
   // CRITICAL: Forces observer to re-check all entries
-    reconnect() {
-      this.observer.disconnect();
-      setTimeout(() => {
-        this.tracked.forEach(img => {
-          if (!img.classList.contains('loaded')) {
-            this.observer.observe(img);  // observe ALL
-          }
-        });
-      }, 0);
-    }
+  reconnect() {
+    this.observer.disconnect();
+    setTimeout(() => {
+      this.tracked.forEach(img => {
+        if (!img.classList.contains('loaded')) {
+          this.observer.observe(img);  // observe ALL
+        }
+      });
+    }, 0);
+  }
 
   handleIntersect(entries) {
     entries.forEach(entry => {
@@ -289,33 +291,33 @@ class ScrollController {
     this.loader.reconnect();  // Forces IntersectionObserver to re-check
   }
 
-    observeVisible() {
-      const vh = window.innerHeight;
-      const top = window.scrollY;
-      const bot = top + vh;
-      const buf = 300;
+  observeVisible() {
+    const vh = window.innerHeight;
+    const top = window.scrollY;
+    const bot = top + vh;
+    const buf = 300;
 
-      let observed = 0;
-      document.querySelectorAll('img.lazy').forEach(img => {
-        if (img.classList.contains('loaded')) return;
+    let observed = 0;
+    document.querySelectorAll('img.lazy').forEach(img => {
+      if (img.classList.contains('loaded')) return;
 
-        // ADD TO TRACKED (even if not visible)
-        if (!this.loader.tracked.has(img)) {
-          this.loader.tracked.add(img);
-        }
+      // ADD TO TRACKED (even if not visible)
+      if (!this.loader.tracked.has(img)) {
+        this.loader.tracked.add(img);
+      }
 
-        const rect = img.getBoundingClientRect();
-        const imgTop = rect.top + window.scrollY;
-        const imgBottom = imgTop + rect.height;
+      const rect = img.getBoundingClientRect();
+      const imgTop = rect.top + window.scrollY;
+      const imgBottom = imgTop + rect.height;
 
-        if (imgBottom > top - buf && imgTop < bot + buf) {
-          this.loader.observer.observe(img);
-          observed++;
-        }
-      });
+      if (imgBottom > top - buf && imgTop < bot + buf) {
+        this.loader.observer.observe(img);
+        observed++;
+      }
+    });
 
-      //console.log(`→ Re-observed ${observed} visible images (total tracked: ${this.loader.tracked.size})`);
-    }
+    //console.log(`→ Re-observed ${observed} visible images (total tracked: ${this.loader.tracked.size})`);
+  }
 }
 
 /* ============================================================= */
