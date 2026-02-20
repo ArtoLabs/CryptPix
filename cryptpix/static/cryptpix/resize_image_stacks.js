@@ -3,115 +3,113 @@
 function resizeImageStacks() {
 
   // Helper function to parse dimension (pixels or percentage)
-  function parseDimension(value, baseDimension, isParentSize, parentDimension) {
-    if (!value || typeof value !== 'string') {
-      console.log('Invalid or missing value, using baseDimension:', baseDimension);
-      return baseDimension;
+  function parseDimension(value, parentSize) {
+    if (!value) return null;
+
+    if (typeof value === "number") return value;
+
+    const str = value.toString().trim();
+
+    if (str.endsWith("%")) {
+      const percent = parseFloat(str.replace("%", ""));
+      if (isNaN(percent)) return null;
+      return Math.floor(parentSize * (percent / 100));
     }
-    const trimmedValue = value.trim();
-    if (trimmedValue.endsWith('%') && isParentSize) {
-      if (parentDimension === 0) {
-        console.warn('Parent dimension is 0; falling back to base dimension:', baseDimension);
-        return baseDimension;
-      }
-      const percentage = parseFloat(trimmedValue) / 100;
-      if (isNaN(percentage)) {
-        console.warn('Invalid percentage value:', trimmedValue);
-        return baseDimension;
-      }
-      const result = Math.round(parentDimension * percentage);
-      return result;
+
+    if (str.endsWith("px")) {
+      const px = parseInt(str.replace("px", ""), 10);
+      return isNaN(px) ? null : px;
     }
-    if (trimmedValue.endsWith('%')) {
-      const percentage = parseFloat(trimmedValue) / 100;
-      if (isNaN(percentage)) {
-        console.warn('Invalid percentage value:', trimmedValue);
-        return baseDimension;
-      }
-      const result = Math.round(baseDimension * percentage);
-      return result;
-    }
-    const result = parseInt(trimmedValue, 10);
-    if (isNaN(result)) {
-      console.warn('Invalid pixel value:', trimmedValue);
-      return baseDimension;
-    }
-    return result;
+
+    const num = parseInt(str, 10);
+    return isNaN(num) ? null : num;
   }
 
-  document.querySelectorAll('.image-stack').forEach(function(stack) {
-    const tileMeta = stack.querySelector('.tile-meta');
-    if (!tileMeta) {
-      console.warn('No tile-meta found in image-stack:', stack);
-      return;
-    }
+  document
+    .querySelectorAll('.cryptpix-media[data-cp-mode="stack"]')
+    .forEach(function (stack) {
 
-    const tileSize = parseInt(tileMeta.dataset.tileSize, 10);
-    if (isNaN(tileSize)) {
-      console.warn('Invalid tileSize in tile-meta:', tileMeta.dataset.tileSize);
-      return;
-    }
+      const tileMeta = stack.querySelector(".cryptpix-meta");
+      if (!tileMeta) {
+        console.warn("No cryptpix-meta found in stack:", stack);
+        return;
+      }
 
-    const topImg = stack.querySelector('img[data-natural-width][data-natural-height]');
-    if (!topImg) {
-      console.warn('No image with data-natural-width/height found in image-stack:', stack);
-      return;
-    }
+      const tileSize = parseInt(tileMeta.dataset.tileSize, 10);
+      if (isNaN(tileSize) || tileSize <= 0) {
+        console.warn("Invalid tile size in cryptpix-meta:", tileMeta);
+        return;
+      }
 
-    const naturalWidth = parseInt(topImg.getAttribute('data-natural-width'), 10);
-    const naturalHeight = parseInt(topImg.getAttribute('data-natural-height'), 10);
-    if (isNaN(naturalWidth) || isNaN(naturalHeight)) {
-      console.warn('Invalid natural width/height in image:', topImg);
-      return;
-    }
+      const naturalWidth = parseInt(stack.getAttribute("data-natural-width"), 10);
+      const naturalHeight = parseInt(stack.getAttribute("data-natural-height"), 10);
 
+      if (isNaN(naturalWidth) || isNaN(naturalHeight)) {
+        console.warn("Invalid natural width/height on cryptpix wrapper:", stack);
+        return;
+      }
 
-    const isParentSize = tileMeta.dataset.parentSize === 'true';
+      const isParentSize = tileMeta.dataset.parentSize === "true";
 
-    // Use #photo-container as parent
-    const parentContainer = isParentSize ? stack.closest('#photo-container') : null;
+      // Use #photo-container as parent when requested
+      const parentContainer = isParentSize
+        ? stack.closest("#photo-container")
+        : null;
 
-    const parentWidth = isParentSize ? parentContainer.getBoundingClientRect().width : naturalWidth;
-    const parentHeight = isParentSize ? parentContainer.getBoundingClientRect().height : naturalHeight;
+      const parentWidth = parentContainer
+        ? parentContainer.clientWidth
+        : stack.parentElement
+        ? stack.parentElement.clientWidth
+        : null;
 
-    const breakpoints = JSON.parse(tileMeta.dataset.breakpoints || '[]');
+      if (!parentWidth) {
+        console.warn("Unable to determine parent width for stack:", stack);
+        return;
+      }
 
-    const currentWidth = window.innerWidth;
+      let targetWidth = parentWidth;
+      let targetHeight = Math.floor(
+        (naturalHeight / naturalWidth) * targetWidth
+      );
 
+      // Explicit width/height overrides from meta
+      const widthAttr = tileMeta.dataset.width;
+      const heightAttr = tileMeta.dataset.height;
 
-    let targetWidth = naturalWidth;
-    let targetHeight = naturalHeight;
-
-    // Check for user-defined width and height
-    const widthAttr = tileMeta.dataset.width || (isParentSize ? '100%' : null);
-    const heightAttr = tileMeta.dataset.height;
-
-
-    if (widthAttr) {
-      targetWidth = parseDimension(widthAttr, naturalWidth, isParentSize, parentWidth);
-      // Calculate height proportionally based on targetWidth and aspect ratio
-      const aspectRatio = naturalHeight / naturalWidth;
-      targetHeight = Math.round(targetWidth * aspectRatio);
-    } else {
-      // Apply breakpoints if defined
-      for (const bp of breakpoints) {
-        if (currentWidth <= bp.maxWidth && bp.width) {
-          targetWidth = parseDimension(bp.width, naturalWidth, isParentSize, parentWidth);
-          // Calculate height proportionally based on targetWidth and aspect ratio
-          const aspectRatio = naturalHeight / naturalWidth;
-          targetHeight = Math.round(targetWidth * aspectRatio);
-          break;
+      if (widthAttr) {
+        const parsedWidth = parseDimension(widthAttr, parentWidth);
+        if (parsedWidth) {
+          targetWidth = parsedWidth;
+          targetHeight = Math.floor(
+            (naturalHeight / naturalWidth) * targetWidth
+          );
         }
       }
-    }
 
-    // Quantize dimensions to the nearest tile size multiple
-    const scaledWidth = Math.round(targetWidth / tileSize) * tileSize;
-    const scaledHeight = Math.round(targetHeight / tileSize) * tileSize;
-    stack.style.width = `${scaledWidth}px`;
-    stack.style.height = `${scaledHeight}px`;
-  });
+      if (heightAttr) {
+        const parsedHeight = parseDimension(heightAttr, parentWidth);
+        if (parsedHeight) {
+          targetHeight = parsedHeight;
+          targetWidth = Math.floor(
+            (naturalWidth / naturalHeight) * targetHeight
+          );
+        }
+      }
+
+      // Snap to tile grid
+      const scaledWidth =
+        Math.round(targetWidth / tileSize) * tileSize;
+      const scaledHeight =
+        Math.round(targetHeight / tileSize) * tileSize;
+
+      stack.style.width = `${scaledWidth}px`;
+      stack.style.height = `${scaledHeight}px`;
+    });
 }
+
+// Optional: auto-run on load + resize
+//window.addEventListener("load", resizeImageStacks);
+//window.addEventListener("resize", resizeImageStacks);
 
 window.addEventListener('DOMContentLoaded', () => {
   requestAnimationFrame(() => {

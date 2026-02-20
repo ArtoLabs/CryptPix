@@ -10,7 +10,8 @@ import json
 def get_css():
     return """
 <style>
-  .image-stack {
+  /* Canonical wrapper/surface */
+  .cryptpix-media {
     width: 100%;
     height: 100%;
     position: relative;
@@ -20,7 +21,16 @@ def get_css():
     background-color: rgba(0, 0, 0, 0);
     z-index: 10;
   }
-  .image-stack img {
+
+  .cryptpix-surface {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    display: block;
+  }
+
+  /* Stack mode: two imgs positioned and aligned */
+  .cryptpix-media[data-cp-mode="stack"] .cryptpix-img {
     position: absolute;
     top: 0;
     left: 0;
@@ -30,14 +40,22 @@ def get_css():
     image-rendering: pixelated;
   }
 
+  /* Single mode: normal flow */
+  .cryptpix-media[data-cp-mode="single"] .cryptpix-img {
+    display: block;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+  }
+
   /* Lazy fade-in */
-  img.lazy {
+  img.cryptpix-img.lazy {
     opacity: 0;
     transition: opacity 1.2s ease-out;
     transform: translateZ(0);
   }
 
-  img.lazy.loaded {
+  img.cryptpix-img.lazy.loaded {
     opacity: 1;
   }
 </style>
@@ -54,35 +72,70 @@ def get_secure_image_url(image_id, request):
     return url
 
 
-def add_lazy_class(attrs: str) -> str:
-    """
-    Ensure that the 'lazy' class is added to the class attribute in attrs.
-    If no class attribute exists, add one.
-    """
+def add_img_classes(attrs: str) -> str:
+    """Ensure canonical classes are present on all emitted <img> tags."""
     import re
 
+    required = {"cryptpix-img", "lazy"}
     class_match = re.search(r'class=["\'](.*?)["\']', attrs)
     if class_match:
-        classes = class_match.group(1).split()
-        if "lazy" not in classes:
-            classes.append("lazy")
-        attrs = re.sub(r'class=["\'](.*?)["\']', f'class="{" ".join(classes)}"', attrs)
+        classes = set(class_match.group(1).split())
+        classes |= required
+        # Preserve stable ordering
+        ordered = []
+        for c in ["cryptpix-img", "lazy"]:
+            if c in classes:
+                ordered.append(c)
+                classes.remove(c)
+        ordered.extend(sorted(classes))
+        attrs = re.sub(r'class=["\'](.*?)["\']', f'class="{" ".join(ordered)}"', attrs)
     else:
-        attrs = f'class="lazy" {attrs}'.strip()
+        attrs = f'class="cryptpix-img lazy" {attrs}'.strip()
 
     return attrs
 
 
 def _distortion_filter_style(use_distortion: bool, hue_rotation) -> str:
-    """
-    Returns the inline CSS filter that reverses the stored distortion.
-    If distortion is not used, returns empty string.
-    """
+    """Returns the inline CSS filter that reverses the stored distortion."""
     if not use_distortion:
         return ""
     if hue_rotation in (None, "", 0, "0"):
         return "filter: invert(100%);"
     return f"filter: invert(100%) hue-rotate(-{hue_rotation}deg);"
+
+
+def _security_level(*, use_split: bool, use_distortion: bool) -> str:
+    if use_split:
+        return "high"
+    if use_distortion:
+        return "medium"
+    return "low"
+
+
+def _render_wrapper_open(
+    *,
+    image_id,
+    mode: str,
+    security: str,
+    natural_width=None,
+    natural_height=None,
+    wrapper_attrs: str = "",
+) -> str:
+    natural_attrs = ""
+    if natural_width is not None:
+        natural_attrs += f' data-natural-width="{natural_width}"'
+    if natural_height is not None:
+        natural_attrs += f' data-natural-height="{natural_height}"'
+
+    # wrapper_attrs is expected to already be a string of attributes, e.g. 'id="..." data-x="..."'
+    wrapper_attrs = (wrapper_attrs or "").strip()
+    wrapper_attrs = f" {wrapper_attrs}" if wrapper_attrs else ""
+
+    return (
+        f'<div class="cryptpix-media" data-cp-mode="{mode}" data-cp-security="{security}" '
+        f'data-cp-image-id="{image_id}"{natural_attrs}{wrapper_attrs}>'
+        f'<div class="cryptpix-surface">'
+    )
 
 
 def render_single_image(
@@ -93,36 +146,35 @@ def render_single_image(
     use_distortion=False,
     hue_rotation=None,
     img_attrs="",
+    wrapper_attrs="",
     natural_width=None,
     natural_height=None,
 ):
-    """
-    Render a single secure image.
-
-    layer:
-      - 0 for original (rarely used in public rendering)
-      - 1 for processed derivative (always exists per our contract)
-    """
-    img_attrs = add_lazy_class(img_attrs)
+    """Render a single secure image."""
+    img_attrs = add_img_classes(img_attrs)
 
     secure_id = f"{image_id}_{layer}"
     style = _distortion_filter_style(use_distortion, hue_rotation)
     style_attr = f' style="{style}"' if style else ""
 
-    # Always include when provided (some external scripts rely on these)
-    natural_attrs = ""
-    if natural_width is not None:
-        natural_attrs += f' data-natural-width="{natural_width}"'
-    if natural_height is not None:
-        natural_attrs += f' data-natural-height="{natural_height}"'
-
+    security = _security_level(use_split=False, use_distortion=bool(use_distortion))
+    wrapper_open = _render_wrapper_open(
+        image_id=image_id,
+        mode="single",
+        security=security,
+        natural_width=natural_width,
+        natural_height=natural_height,
+        wrapper_attrs=wrapper_attrs,
+    )
 
     html = f"""
-
-    <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
-     data-src="{escape(get_secure_image_url(secure_id, request))}"
-     loading="lazy" {style_attr} {img_attrs} {natural_attrs}>
-
+{wrapper_open}
+  <img
+    src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
+    data-src="{escape(get_secure_image_url(secure_id, request))}"
+    data-cp-layer="{layer}"
+    loading="lazy"{style_attr} {img_attrs}>
+</div></div>
 """
     return mark_safe(html)
 
@@ -143,19 +195,11 @@ def render_image_stack(
     breakpoints=None,
     parent_size=None,
 ):
-    """
-    Render the two-layer split stack.
-
-    If use_distortion=True, applies the reversal filter.
-    If use_distortion=False, no filter is applied.
-
-    IMPORTANT:
-      - data-natural-width / data-natural-height are emitted on BOTH:
-        (1) the wrapper .image-stack (for scripts that query the container)
-        (2) the top image (backward compatibility)
-    """
+    """Render the two-layer split stack."""
     breakpoints_json = json.dumps(breakpoints or [])
-    top_img_attrs = add_lazy_class(top_img_attrs)
+
+    # Both images must share the same canonical class contract.
+    top_img_attrs = add_img_classes(top_img_attrs)
 
     meta_attrs = [
         f"data-tile-size='{tile_size}'",
@@ -172,23 +216,31 @@ def render_image_stack(
     image_id_2 = str(image_id) + "_2"
 
     style = _distortion_filter_style(use_distortion, hue_rotation)
-    style_attr = f'style="{style}"' if style else ""
+    style_attr = f' style="{style}"' if style else ""
 
-    wrapper_natural = ""
-    if width is not None:
-        wrapper_natural += f' data-natural-width="{width}"'
-    if height is not None:
-        wrapper_natural += f' data-natural-height="{height}"'
+    security = _security_level(use_split=True, use_distortion=bool(use_distortion))
+    wrapper_open = _render_wrapper_open(
+        image_id=image_id,
+        mode="stack",
+        security=security,
+        natural_width=width,
+        natural_height=height,
+        wrapper_attrs=wrapper_attrs,
+    )
 
     html = f"""
-<div class="image-stack"{wrapper_natural} {wrapper_attrs}>
-  <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
-       data-src="{escape(get_secure_image_url(image_id_1, request))}"
-       loading="lazy" {style_attr} class="lazy">
-  <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
-       data-src="{escape(get_secure_image_url(image_id_2, request))}"
-       loading="lazy" {style_attr} {top_img_attrs} data-natural-width="{width}" data-natural-height="{height}">
-  <div class="tile-meta" {" ".join(meta_attrs)} hidden></div>
-</div>
+{wrapper_open}
+  <img
+    src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
+    data-src="{escape(get_secure_image_url(image_id_1, request))}"
+    data-cp-layer="1"
+    loading="lazy"{style_attr} class="cryptpix-img lazy">
+  <img
+    src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
+    data-src="{escape(get_secure_image_url(image_id_2, request))}"
+    data-cp-layer="2"
+    loading="lazy"{style_attr} {top_img_attrs}>
+  <div class="cryptpix-meta" {" ".join(meta_attrs)} hidden></div>
+</div></div>
 """
     return mark_safe(html)
