@@ -41,6 +41,16 @@
             <li><a href="#what-happens">What Happens</a></li>
           </ul>
         </li>
+        <li><a href="#security-modes-and-rendering-architecture">Security Modes and Rendering Architecture</a>
+          <ul>
+            <li><a href="#mode-1-secure-single-image-obfuscated-link">Mode 1: Secure Single Image (Obfuscated Link)</a></li>
+            <li><a href="#mode-2-secure-single-image-with-visual-distortion">Mode 2: Secure Single Image with Visual Distortion</a></li>
+            <li><a href="#mode-3-secure-split-layer-reconstruction">Mode 3: Secure Split-Layer Reconstruction</a></li>
+            <li><a href="#stable-dom-contract">Stable DOM Contract</a></li>
+            <li><a href="#css-integration-guidance">CSS Integration Guidance</a></li>
+            <li><a href="#javascript-integration-guidance">JavaScript Integration Guidance</a></li>
+          </ul>
+        </li>
       </ul>
     </li>
     <li><a href="#integration-usage">Integration and Usage</a>
@@ -248,6 +258,248 @@ class MyModel(CryptPixModelMixin, models.Model):
 </ul>
 
 <p>The original image remains in the source field unless you restrict access (see next section).</p>
+
+
+
+<h2 id="security-modes-and-rendering-architecture">Security Modes and Rendering Architecture</h2>
+
+<p>CryptPix supports three distinct security behaviors. Each mode builds on the previous one, increasing protection while preserving a stable DOM contract for consuming projects.</p>
+
+<p>All three modes share the same outer wrapper element and class structure. Every rendered image is wrapped in:</p>
+
+<ul>
+  <li><code>&lt;div class="image-stack"&gt;</code></li>
+  <li>A <code>data-layout</code> attribute indicating <code>"single"</code> or <code>"stack"</code></li>
+  <li>Consistent <code>data-natural-width</code> and <code>data-natural-height</code> attributes when available</li>
+</ul>
+
+<p>This guarantees that CSS selectors and JavaScript integrations can rely on a stable container contract, regardless of how many <code>&lt;img&gt;</code> elements are rendered internally.</p>
+
+<hr>
+
+<h3 id="mode-1-secure-single-image-obfuscated-link">Mode 1: Secure Single Image (Obfuscated Link)</h3>
+
+<p><strong>What it does</strong></p>
+
+<ul>
+  <li>Stores one processed PNG derivative in <code>image_layer_1</code>.</li>
+  <li>Serves it through a short-lived, signed URL tied to the user’s session.</li>
+  <li>Renders a single <code>&lt;img&gt;</code> element in the DOM.</li>
+  <li>Uses lazy loading with a placeholder <code>src</code> and a signed <code>data-src</code>.</li>
+</ul>
+
+<p>No visual distortion or splitting occurs. Protection is provided through controlled delivery and expiring, session-bound URLs.</p>
+
+<p><strong>DOM Output</strong></p>
+
+<p>This mode renders exactly <strong>one <code>&lt;img&gt;</code> element</strong> inside the wrapper.</p>
+
+<pre><code>&lt;div class="image-stack" data-layout="single" data-natural-width="1200" data-natural-height="800"&gt;
+  &lt;img
+    src="data:image/gif;base64,..."
+    data-src="/cryptpix/secure-image/&lt;signed_value&gt;/"
+    loading="lazy"
+    class="lazy"
+    data-natural-width="1200"
+    data-natural-height="800"&gt;
+&lt;/div&gt;
+</code></pre>
+
+<p><strong>When to use</strong></p>
+
+<ul>
+  <li>When you want link protection without visual transformation.</li>
+  <li>When maintaining pixel-perfect original color data is important.</li>
+  <li>When minimal processing overhead is preferred.</li>
+</ul>
+
+<hr>
+
+<h3 id="mode-2-secure-single-image-with-visual-distortion">Mode 2: Secure Single Image with Visual Distortion</h3>
+
+<p><strong>What it does</strong></p>
+
+<ul>
+  <li>Applies hue rotation and color inversion at save time.</li>
+  <li>Stores the distorted image in <code>image_layer_1</code>.</li>
+  <li>Persists the chosen <code>hue_rotation</code> value.</li>
+  <li>Reverses the distortion in the browser using an inline CSS filter.</li>
+  <li>Still renders a single <code>&lt;img&gt;</code> element.</li>
+</ul>
+
+<p>The image stored on disk is visually altered. Only when rendered inside the CryptPix wrapper with the correct filter does it appear normal.</p>
+
+<p><strong>DOM Output</strong></p>
+
+<p>This mode also renders exactly <strong>one <code>&lt;img&gt;</code> element</strong>, identical in structure to Mode 1, but with a reversing CSS filter applied inline.</p>
+
+<pre><code>&lt;div class="image-stack" data-layout="single" data-natural-width="1200" data-natural-height="800"&gt;
+  &lt;img
+    src="data:image/gif;base64,..."
+    data-src="/cryptpix/secure-image/&lt;signed_value&gt;/"
+    loading="lazy"
+    class="lazy"
+    style="filter: invert(100%) hue-rotate(-120deg);"
+    data-natural-width="1200"
+    data-natural-height="800"&gt;
+&lt;/div&gt;
+</code></pre>
+
+<p><strong>How it differs from Mode 1</strong></p>
+
+<ul>
+  <li>Same DOM structure.</li>
+  <li>Same single-image rendering.</li>
+  <li>Additional pixel-level transformation stored on disk.</li>
+  <li>Inline CSS filter reverses the transformation at render time.</li>
+</ul>
+
+<p><strong>When to use</strong></p>
+
+<ul>
+  <li>When you want stronger protection against raw file reuse.</li>
+  <li>When you want downloaded derivatives to appear visually incorrect outside your site.</li>
+  <li>When you still prefer a simple single-image DOM structure.</li>
+</ul>
+
+<hr>
+
+<h3 id="mode-3-secure-split-layer-reconstruction">Mode 3: Secure Split-Layer Reconstruction</h3>
+
+<p><strong>What it does</strong></p>
+
+<ul>
+  <li>Optionally distorts the image first.</li>
+  <li>Splits the image into a checkerboard pattern.</li>
+  <li>Stores two separate PNG derivatives: <code>image_layer_1</code> and <code>image_layer_2</code>.</li>
+  <li>Persists <code>tile_size</code>, <code>image_width</code>, and <code>image_height</code>.</li>
+  <li>Renders two coordinated <code>&lt;img&gt;</code> elements stacked in the same container.</li>
+  <li>Reconstructs the full image visually in the browser.</li>
+</ul>
+
+<p>Each layer contains alternating tiles. Individually, they are incomplete. Only when stacked in the browser do they form the full image.</p>
+
+<p><strong>DOM Output</strong></p>
+
+<p>This mode renders <strong>two <code>&lt;img&gt;</code> elements</strong> inside the same <code>.image-stack</code> wrapper, plus hidden metadata used for layout.</p>
+
+<pre><code>&lt;div class="image-stack" data-layout="stack" data-natural-width="1200" data-natural-height="800"&gt;
+  &lt;img
+    src="data:image/gif;base64,..."
+    data-src="/cryptpix/secure-image/&lt;signed_value_layer1&gt;/"
+    loading="lazy"
+    class="lazy"
+    style="filter: invert(100%) hue-rotate(-120deg);"&gt;
+  &lt;img
+    src="data:image/gif;base64,..."
+    data-src="/cryptpix/secure-image/&lt;signed_value_layer2&gt;/"
+    loading="lazy"
+    class="lazy"
+    style="filter: invert(100%) hue-rotate(-120deg);"
+    data-natural-width="1200"
+    data-natural-height="800"&gt;
+  &lt;div
+    class="tile-meta"
+    data-tile-size="24"
+    data-breakpoints="[]"
+    hidden&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+</code></pre>
+
+<p><strong>How it differs from Modes 1 and 2</strong></p>
+
+<ul>
+  <li>Renders two <code>&lt;img&gt;</code> elements instead of one.</li>
+  <li>Requires layout coordination and tile quantization.</li>
+  <li>Depends on JavaScript to calculate responsive stack dimensions.</li>
+  <li>Introduces stored tiling metadata.</li>
+</ul>
+
+<p><strong>When to use</strong></p>
+
+<ul>
+  <li>When you want the strongest protection.</li>
+  <li>When making downloaded image layers individually unusable is important.</li>
+  <li>When accepting slightly more complexity in rendering and layout logic.</li>
+</ul>
+
+<hr>
+
+<h2 id="stable-dom-contract">Stable DOM Contract</h2>
+
+<p>Across all modes:</p>
+
+<ul>
+  <li>The outer wrapper is always <code>&lt;div class="image-stack"&gt;</code>.</li>
+  <li>The <code>data-layout</code> attribute indicates <code>"single"</code> or <code>"stack"</code>.</li>
+  <li>Natural dimension attributes are consistently exposed.</li>
+  <li>The <code>&lt;img&gt;</code> elements always use lazy loading with <code>data-src</code>.</li>
+  <li>The secure URL format and session validation remain identical.</li>
+</ul>
+
+<p>This guarantees that consuming projects can safely target:</p>
+
+<p><code>.image-stack</code><br>
+<code>.image-stack img.lazy</code></p>
+
+<p>without needing to know which mode is active.</p>
+
+<p>The only structural difference is the number of <code>&lt;img&gt;</code> elements inside the wrapper:</p>
+
+<ul>
+  <li>Modes 1 and 2: one <code>&lt;img&gt;</code></li>
+  <li>Mode 3: two <code>&lt;img&gt;</code> elements</li>
+</ul>
+
+<hr>
+
+<h2 id="css-integration-guidance">CSS Integration Guidance</h2>
+
+<p>You must include the <code>{% cryptpix_css %}</code> tag in your <code>&lt;head&gt;</code> section. This ensures:</p>
+
+<ul>
+  <li>Proper positioning for split stacks.</li>
+  <li>Normal flow layout for single-image mode.</li>
+  <li>Correct lazy fade-in behavior.</li>
+</ul>
+
+<p>Do not override positioning rules for <code>.image-stack[data-layout="stack"] img</code>, as these rely on absolute stacking for visual reconstruction.</p>
+
+<p>If you need custom styling, apply classes via the template tag and target the wrapper:</p>
+
+<pre><code>{% cryptpix_image photo class="my-custom-image" width="100%" %}</code></pre>
+
+<p>Then style <code>.my-custom-image</code> as needed, leaving the core stack behavior intact.</p>
+
+<hr>
+
+<h2 id="javascript-integration-guidance">JavaScript Integration Guidance</h2>
+
+<p>If you use split-layer mode:</p>
+
+<ul>
+  <li>Include <code>resize_image_stacks.js</code>.</li>
+  <li>Ensure it loads after the DOM is ready.</li>
+  <li>Do not remove the <code>.tile-meta</code> element.</li>
+</ul>
+
+<p>The resizing script:</p>
+
+<ul>
+  <li>Selects only <code>.image-stack[data-layout="stack"]</code></li>
+  <li>Ensures exactly two <code>&lt;img&gt;</code> elements are present</li>
+  <li>Quantizes dimensions to tile multiples</li>
+</ul>
+
+<p>Single-image modes do not require the resizing logic, but can safely coexist with it because the script explicitly targets <code>data-layout="stack"</code>.</p>
+
+<hr>
+
+<p>By choosing the appropriate mode, you control the trade-off between simplicity and defensive strength. All modes preserve a stable rendering contract while scaling the depth of protection.</p>
+
+
+
 
 <h1 id="integration-usage">Integration and Usage</h1>
 
